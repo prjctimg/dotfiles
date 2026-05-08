@@ -1,0 +1,13 @@
+# GIMP action-history
+
+(history-item "file-open" 1)
+(history-item "image-crop-to-content" 0)
+(history-item "file-quit" 1)
+(history-item "plug-in-guillotine" 0)
+(history-item "tools-fuzzy-select" 0)
+(history-item "tools-smudge" 0)
+(history-item "image-scale" 0)
+(history-item "dialogs-about" 0)
+(history-item "plug-in-zealouscrop" 1)
+
+# end of action-history

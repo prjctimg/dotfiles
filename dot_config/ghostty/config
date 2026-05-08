@@ -1,0 +1,25 @@
+confirm-close-surface = false
+title = ディーン・タリサイ🌠
+cursor-style = block
+quick-terminal-animation-duration = 0.9
+command =fish 
+clipboard-read = allow
+clipboard-write = allow
+copy-on-select = clipboard
+window-colorspace = display-p3
+window-save-state = always
+window-padding-balance = false
+gtk-wide-tabs = false
+bell-features=audio
+theme = Catppuccin Frappe
+fullscreen = true
+keybind = ctrl+shift+tab=unbind
+# custom-shader = ~/.config/ghostty/shaders/gears-and-belts.glsl
+custom-shader = ~/.config/ghostty/shaders/cursor_blaze.glsl
+# background-image = ~/.config/ghostty/static/dark.jpg
+# background-image-fit = cover
+# background-image-position = center
+
+
+
+

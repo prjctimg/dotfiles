@@ -1,0 +1,276 @@
+# This file is written by flow when settings are changed interactively. You may
+# edit values by hand, but not comments. Comments will be overwritten. Values
+# configured to the default value will be automatically commented and possibly
+# updated if the default value changes. To store values that cannot be changed
+# by flow, put them in a new file and reference it in the include_files
+# configuration option at the end of this file. include_files are never
+# modified by flow.
+
+# frame_rate 60
+# value type: positive integer
+
+# theme "ayu-mirage-bordered"
+# value type: quoted string
+
+light_theme "zenwritten_dark_stark"
+# default value: "ayu-light"
+# value type: quoted string
+
+# input_mode "flow"
+# value type: quoted string
+
+# gutter_line_numbers_mode null
+# value type: one of "none", "relative", "absolute" or null
+
+# gutter_line_numbers_style "ascii"
+# value type: one of "ascii", "digital", "subscript", "superscript"
+
+# gutter_symbols true
+# value type: true or false
+
+# gutter_width_mode "local"
+# value type: one of "local", "global"
+
+# gutter_width_minimum 4
+# value type: positive integer
+
+# gutter_width_maximum 8
+# value type: positive integer
+
+# enable_terminal_cursor true
+# value type: true or false
+
+# enable_terminal_color_scheme false
+# value type: true or false
+
+# enable_sgr_pixel_mode_support true
+# value type: true or false
+
+# enable_modal_dim true
+# value type: true or false
+
+# highlight_current_line true
+# value type: true or false
+
+# highlight_current_line_gutter true
+# value type: true or false
+
+# highlight_columns [80,100,120]
+# value type: quoted string (u16)
+
+# highlight_columns_alpha 240
+# value type: positive integer up to 255
+
+# highlight_columns_enabled false
+# value type: true or false
+
+# whitespace_mode "indent"
+# value type: one of "indent", "leading", "eol", "tabs", "external", "visible", "full", "none"
+
+# inline_diagnostics true
+# value type: true or false
+
+# inline_diagnostics_alignment "right"
+# value type: one of "left", "right"
+
+# inline_vcs_blame false
+# value type: true or false
+
+# inline_vcs_blame_alignment "right"
+# value type: one of "left", "right"
+
+# inline_vcs_blame_age "short"
+# value type: one of "short", "long"
+
+# animation_min_lag 0
+# value type: positive integer
+
+# animation_max_lag 50
+# value type: positive integer
+
+# hover_time_ms 500
+# value type: positive integer
+
+# hover_info_mode "box"
+# value type: one of "box", "panel"
+
+# input_idle_time_ms 100
+# value type: positive integer
+
+# idle_actions ["highlight_references"]
+# value type: list of idle actions (available actions: "hover", "highlight_references")
+
+# idle_commands null
+# value type: list of quoted strings or null
+
+# enable_format_on_save false
+# value type: true or false
+
+# restore_last_cursor_position true
+# value type: true or false
+
+# follow_cursor_on_buffer_switch false
+# value type: true or false
+
+# default_cursor "default"
+# value type: one of "default", "block_blink", "block", "underline_blink", "underline", "beam_blink", "beam"
+
+# modes_can_change_cursor true
+# value type: true or false
+
+# enable_auto_save false
+# value type: true or false
+
+# auto_save_mode "on_focus_change"
+# value type: one of "on_input_idle", "on_focus_change", "on_document_change"
+
+# limit_auto_save_file_types null
+# value type: list of quoted strings or null
+
+# enable_prefix_keyhints true
+# value type: true or false
+
+# enable_auto_find true
+# value type: true or false
+
+# initial_find_query "selection"
+# value type: one of "empty", "selection", "last_query", "selection_or_last_query"
+
+# ignore_filter_stderr false
+# value type: true or false
+
+# auto_run_time_seconds 120
+# value type: positive integer
+
+# auto_run_commands ["save_session_quiet"]
+# value type: list of quoted strings or null
+
+# indent_size 4
+# value type: positive integer
+
+# tab_width 8
+# value type: positive integer
+
+# indent_mode "auto"
+# value type: one of "auto", "spaces", "tabs"
+
+# reflow_width 76
+# value type: positive integer
+
+# top_bar "tabs"
+# value type: quoted string
+
+# bottom_bar "mode file log selection diagnostics keybind branch linenumber clock spacer"
+# value type: quoted string
+
+# show_bottom_bar_grip true
+# value type: true or false
+
+# show_scrollbars true
+# value type: true or false
+
+# show_fileicons true
+# value type: true or false
+
+# show_local_diagnostics_in_panel false
+# value type: true or false
+
+# auto_open_panel_for_diagnostics true
+# value type: true or false
+
+# scrollbar_auto_hide true
+# value type: true or false
+
+# scroll_step_vertical 3
+# value type: positive integer
+
+# scroll_step_horizontal 5
+# value type: positive integer
+
+# scroll_cursor_min_border_distance 5
+# value type: positive integer
+
+# start_debugger_on_crash false
+# value type: true or false
+
+# completion_trigger "automatic"
+# value type: one of "manual", "automatic", "every_keystroke"
+
+# completion_style "dropdown"
+# value type: one of "palette", "dropdown"
+
+# completion_insert_mode "insert"
+# value type: one of "insert", "replace"
+
+# completion_info_mode "box"
+# value type: one of "none", "box", "panel"
+
+# widget_style "compact"
+# value type: one of "bars_top_bottom", "bars_left_right", "bar_left", "bar_right", "thick_boxed", "extra_thick_boxed", "dotted_boxed", "rounded_boxed", "double_boxed", "single_double_top_bottom_boxed", "single_double_left_right_boxed", "boxed", "bar_left_spacious", "bar_right_spacious", "spacious", "compact"
+
+# palette_style "bars_top_bottom"
+# value type: one of "bars_top_bottom", "bars_left_right", "bar_left", "bar_right", "thick_boxed", "extra_thick_boxed", "dotted_boxed", "rounded_boxed", "double_boxed", "single_double_top_bottom_boxed", "single_double_left_right_boxed", "boxed", "bar_left_spacious", "bar_right_spacious", "spacious", "compact"
+
+# dropdown_style "compact"
+# value type: one of "bars_top_bottom", "bars_left_right", "bar_left", "bar_right", "thick_boxed", "extra_thick_boxed", "dotted_boxed", "rounded_boxed", "double_boxed", "single_double_top_bottom_boxed", "single_double_left_right_boxed", "boxed", "bar_left_spacious", "bar_right_spacious", "spacious", "compact"
+
+# panel_style "compact"
+# value type: one of "bars_top_bottom", "bars_left_right", "bar_left", "bar_right", "thick_boxed", "extra_thick_boxed", "dotted_boxed", "rounded_boxed", "double_boxed", "single_double_top_bottom_boxed", "single_double_left_right_boxed", "boxed", "bar_left_spacious", "bar_right_spacious", "spacious", "compact"
+
+# home_style "bars_top_bottom"
+# value type: one of "bars_top_bottom", "bars_left_right", "bar_left", "bar_right", "thick_boxed", "extra_thick_boxed", "dotted_boxed", "rounded_boxed", "double_boxed", "single_double_top_bottom_boxed", "single_double_left_right_boxed", "boxed", "bar_left_spacious", "bar_right_spacious", "spacious", "compact"
+
+# pane_left_style "bar_right"
+# value type: one of "bars_top_bottom", "bars_left_right", "bar_left", "bar_right", "thick_boxed", "extra_thick_boxed", "dotted_boxed", "rounded_boxed", "double_boxed", "single_double_top_bottom_boxed", "single_double_left_right_boxed", "boxed", "bar_left_spacious", "bar_right_spacious", "spacious", "compact"
+
+# pane_right_style "bar_left"
+# value type: one of "bars_top_bottom", "bars_left_right", "bar_left", "bar_right", "thick_boxed", "extra_thick_boxed", "dotted_boxed", "rounded_boxed", "double_boxed", "single_double_top_bottom_boxed", "single_double_left_right_boxed", "boxed", "bar_left_spacious", "bar_right_spacious", "spacious", "compact"
+
+# pane_style "panel"
+# value type: one of "panel", "editor"
+
+# hint_window_style "thick_boxed"
+# value type: one of "bars_top_bottom", "bars_left_right", "bar_left", "bar_right", "thick_boxed", "extra_thick_boxed", "dotted_boxed", "rounded_boxed", "double_boxed", "single_double_top_bottom_boxed", "single_double_left_right_boxed", "boxed", "bar_left_spacious", "bar_right_spacious", "spacious", "compact"
+
+# info_box_style "bar_left_spacious"
+# value type: one of "bars_top_bottom", "bars_left_right", "bar_left", "bar_right", "thick_boxed", "extra_thick_boxed", "dotted_boxed", "rounded_boxed", "double_boxed", "single_double_top_bottom_boxed", "single_double_left_right_boxed", "boxed", "bar_left_spacious", "bar_right_spacious", "spacious", "compact"
+
+# info_box_width_limit 80
+# value type: positive integer
+
+# centered_view false
+# value type: true or false
+
+# centered_view_width 145
+# value type: positive integer
+
+# centered_view_min_screen_width 145
+# value type: positive integer
+
+# lsp_output "quiet"
+# value type: one of "quiet", "verbose"
+
+# keybind_mode "normal"
+# value type: one of "normal", "ignore_alt_text_modifiers"
+
+# dropdown_keybinds "standard"
+# value type: one of "standard", "noninvasive"
+
+# dropdown_limit 12
+# value type: positive integer
+
+# retain_symlinks true
+# value type: true or false
+
+# follow_directory_symlinks false
+# value type: true or false
+
+# log_ignored_links false
+# value type: true or false
+
+# maximum_symlink_depth 3
+# value type: positive integer
+
+# include_files ""
+# value type: quoted string of : separated paths
+

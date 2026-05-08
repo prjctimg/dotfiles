@@ -1,0 +1,14 @@
+# GIMP user context
+
+(tool "gimp-smudge-tool")
+(paint-info "gimp-smudge")
+(brush "2. Hardness 050")
+(dynamics "Dynamics Off")
+(mybrush "Standard")
+(pattern "Pine")
+(gradient "FG to BG (RGB)")
+(palette "Color History")
+(font "Sans-serif")
+(tool-preset "Core Pointer")
+
+# end of user context

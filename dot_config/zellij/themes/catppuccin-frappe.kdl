@@ -1,0 +1,15 @@
+themes {
+    catppuccin_frappe {
+        fg 202 205 224
+        bg 48 52 70
+        red 231 130 132
+        green 166 209 137
+        yellow 229 200 144
+        blue 138 170 238
+        magenta 245 169 127
+        orange 239 159 118
+        cyan 129 200 190
+        black 35 38 52
+        white 181 191 226
+    }
+}
