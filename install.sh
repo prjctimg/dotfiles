@@ -12,44 +12,60 @@ gh_latest_tag() {
 
 install_pkg() {
   case "$PM" in
-    apt)
-      sudo apt-get update -qq
-      sudo apt-get install -y -qq "$@"
-      ;;
-    apk)    sudo apk add --no-cache "$@" ;;
-    brew)   brew install "$@" ;;
-    dnf)    sudo dnf install -y "$@" ;;
-    pacman) sudo pacman -S --noconfirm "$@" ;;
-    zypper) sudo zypper install -y "$@" ;;
+  apt)
+    sudo apt-get update -qq
+    sudo apt-get install -y -qq "$@"
+    ;;
+  apk) sudo apk add --no-cache "$@" ;;
+  brew) brew install "$@" ;;
+  dnf) sudo dnf install -y "$@" ;;
+  pacman) sudo pacman -S --noconfirm "$@" ;;
+  zypper) sudo zypper install -y "$@" ;;
   esac
 }
 
 # ─── Platform detection ─────────────────────────────────────────────
 
 PM=unknown
-if has apt-get; then PM=apt
-elif has apk;   then PM=apk
-elif has brew;  then PM=brew
-elif has dnf;   then PM=dnf
-elif has pacman; then PM=pacman
-elif has zypper; then PM=zypper
+if has apt-get; then
+  PM=apt
+elif has apk; then
+  PM=apk
+elif has brew; then
+  PM=brew
+elif has dnf; then
+  PM=dnf
+elif has pacman; then
+  PM=pacman
+elif has zypper; then
+  PM=zypper
 fi
 
 ARCH=$(uname -m)
 case "$ARCH" in
-  x86_64)          GH_ARCH=amd64;  BIN_ARCH=x86_64  ;;
-  aarch64|arm64)   GH_ARCH=arm64;  BIN_ARCH=aarch64 ;;
-  *)               GH_ARCH="$ARCH"; BIN_ARCH="$ARCH" ;;
+x86_64)
+  GH_ARCH=amd64
+  BIN_ARCH=x86_64
+  ;;
+aarch64 | arm64)
+  GH_ARCH=arm64
+  BIN_ARCH=aarch64
+  ;;
+*)
+  GH_ARCH="$ARCH"
+  BIN_ARCH="$ARCH"
+  ;;
 esac
 # lazygit uses different arch naming
-LAZY_ARCH="$BIN_ARCH"; [ "$ARCH" = aarch64 ] && LAZY_ARCH=arm64
+LAZY_ARCH="$BIN_ARCH"
+[ "$ARCH" = aarch64 ] && LAZY_ARCH=arm64
 
 # ─── System packages (available in most distros) ────────────────────
 
 install_pkg git curl ca-certificates jq ripgrep fzf lua5.4 pv unzip lolcat
 
 case "$PM" in
-  apt) install_pkg nala neofetch ;;
+apt) install_pkg nala neofetch ;;
 esac
 
 # ─── Neovim (appimage) ──────────────────────────────────────────────
