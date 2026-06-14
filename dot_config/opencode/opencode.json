@@ -1,7 +1,4 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "lsp": true,
-  "keys": {
-    "submit": ["shift+enter", "ctrl+enter"]
-  }
+  "lsp": true
 }
