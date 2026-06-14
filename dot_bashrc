@@ -121,3 +121,10 @@ export PATH="$BUN_INSTALL/bin:$PATH"
 
 # opencode
 export PATH="$HOME/.opencode/bin:$PATH"
+
+# odin
+export PATH="$HOME/.odin:$PATH"
+# nim
+export PATH="$HOME/.nim/bin:$PATH"
+export PATH="$HOME/.nim/bin:$HOME/.nimble/bin:$PATH"
+. "/home/prjctimg/.deno/env"

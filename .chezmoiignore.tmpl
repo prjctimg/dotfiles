@@ -1,0 +1,7 @@
+{{ if not (stat "/data/data/com.termux") -}}
+dot_config/fish/conf.d/termux.fish
+{{ end -}}
+
+{{ if (stat "/data/data/com.termux") -}}
+dot_config/fish/conf.d/desktop.fish
+{{ end -}}

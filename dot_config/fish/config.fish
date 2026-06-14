@@ -1,5 +1,14 @@
 #! /usr/bin/env fish
 
+# PATH helper: adds a directory to PATH if it exists
+function add-to-path --description="Add a directory to PATH if it exists"
+    for dir in $argv
+        if test -d "$dir"
+            fish_add_path "$dir"
+        end
+    end
+end
+
 bind \ea opencode
 bind \ee nvim
 bind \et btop
@@ -251,7 +260,7 @@ end
 function so
 
     # @fish-lsp-disable-next-line 1004
-    source /home/$(whoami)/.config/fish/config.fish
+    source $HOME/.config/fish/config.fish
 end
 
 function invoke_bash
@@ -380,7 +389,23 @@ set -x EDITOR nvim
 set -x MYVIMRC "$XDG_CONFIG_HOME/nvim/"
 set -x TERMRC "$XDG_CONFIG_HOME/ghostty/config"
 set -x GHOSTTY_SHELL_INTEGRATION_NO_SUDO 0
-set -x PATH //home/prjctimg/.bun/bin:/usr/local/sbin:/usr/local/bin:/usr/local/games:/usr/sbin:/usr/bin:/usr/games:/sbin:/bin:/home/prjctimg/go/bin:/usr/bin/go/bin:/usr/local/sbin:/usr/local/bin:/usr/local/games:/usr/sbin:/usr/bin:/usr/games:/sbin:/bin:/home/prjctimg/.x-cmd.root/bin:/home/prjctimg/.cargo/bin/:/usr/local/go/bin/:/home/prjctimg/.juliaup/bin/:/home/prjctimg/.local/share/nvim/mason/bin/:/home/prjctimg/.zvm/bin:/home/prjctimg/.zvm/self:/home/prjctimg/.opencode/bin:/home/prjctimg/.local/pipx/venvs
+# User PATH entries
+add-to-path $HOME/.bun/bin
+add-to-path $HOME/.x-cmd.root/bin
+add-to-path $HOME/.juliaup/bin
+add-to-path $HOME/.local/share/nvim/mason/bin
+add-to-path $HOME/.zvm/bin
+add-to-path $HOME/.zvm/self
+add-to-path $HOME/.opencode/bin
+add-to-path $HOME/.odin
+add-to-path $HOME/.nim/bin
+add-to-path $HOME/.nimble/bin
+add-to-path $HOME/.deno/bin/
+
+
+
+
+
 set -x SHELL fish
 set -x SUDO_EDITOR $(which nvim)
 set -x OPENSSL_DIR $(which openssl)
@@ -394,4 +419,4 @@ eval (starship init fish)
 ssh_agent
 
 # Created by `pipx` on 2026-04-02 06:44:32
-set PATH $PATH /home/prjctimg/.local/bin
+add-to-path $HOME/.local/bin

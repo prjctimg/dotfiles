@@ -10,13 +10,25 @@ o.autoindent = true
 o.shiftwidth = 2
 o.tabstop = 2
 o.expandtab = true
-o.scrolloff = 30
 o.clipboard = "unnamedplus"
 o.updatetime = 4000
 o.spelllang = "en"
-o.winbl = 25
 o.spelloptions = "camel"
-o.pumblend = 15
 opt.iskeyword:append("-")
 opt.complete:append("kspell")
-opt.cursorcolumn = true
+
+{{ if (stat "/data/data/com.termux") -}}
+-- Mobile Termux: lightweight, no transparency, no blink
+o.lazyredraw = true
+o.scrolloff = 8
+o.winbl = 0
+o.pumblend = 0
+o.cursorcolumn = false
+vim.opt.guicursor = "a:block-Cursor/lCursor-blinkon0"
+{{ else -}}
+-- Desktop: full experience
+o.scrolloff = 30
+o.winbl = 25
+o.pumblend = 15
+o.cursorcolumn = true
+{{ end -}}
