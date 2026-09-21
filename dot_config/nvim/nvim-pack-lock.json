@@ -1,0 +1,64 @@
+{
+  "plugins": {
+    "conform.nvim": {
+      "rev": "016802de402556da54c36bd7359b441266b01cdd",
+      "src": "https://github.com/stevearc/conform.nvim"
+    },
+    "emoji.nvim": {
+      "rev": "e94f1867d172acd0bb23410cce56ae05d098958c",
+      "src": "https://github.com/allaman/emoji.nvim"
+    },
+    "friendly-snippets": {
+      "rev": "6cd7280adead7f586db6fccbd15d2cac7e2188b9",
+      "src": "https://github.com/rafamadriz/friendly-snippets"
+    },
+    "grug-far.nvim": {
+      "rev": "11595bf747edc270bce2069d1020502ad4ae56cf",
+      "src": "https://github.com/MagicDuck/grug-far.nvim"
+    },
+    "image.nvim": {
+      "rev": "365e2ace0f619164ae6fd2f6f1d2807775dd6849",
+      "src": "https://github.com/3rd/image.nvim"
+    },
+    "mini.nvim": {
+      "rev": "ee23d71c02440668cbca5b0cd8640d79d5bc250b",
+      "src": "https://github.com/nvim-mini/mini.nvim"
+    },
+    "nerdy.nvim": {
+      "rev": "5d2d37f828a6df2f85e6df6b0a2b375f45bd5125",
+      "src": "https://github.com/2kabhishek/nerdy.nvim"
+    },
+    "nvim-lspconfig": {
+      "rev": "84252f9832fb5b9024fe9f7258e7c2aff915e6fb",
+      "src": "https://github.com/neovim/nvim-lspconfig"
+    },
+    "nvim-treesitter": {
+      "rev": "41416e81a6c7f4af4984395bfe0cd8d174e70976",
+      "src": "https://github.com/nvim-treesitter/nvim-treesitter"
+    },
+    "nvim-treesitter-textobjects": {
+      "rev": "5c7b0263797dfd1bd6202f2b219f3b53a80b2187",
+      "src": "https://github.com/nvim-treesitter/nvim-treesitter-textobjects"
+    },
+    "p5.nvim": {
+      "rev": "3a3f52276cf034ae272d15bf921678db0a9f7b48",
+      "src": "https://github.com/prjctimg/p5.nvim"
+    },
+    "pomo.nvim": {
+      "rev": "aa8decc421d89be0f10b1fc6a602cdd269f350ff",
+      "src": "https://github.com/epwalsh/pomo.nvim"
+    },
+    "render-markdown.nvim": {
+      "rev": "640a3ec6d538bad17c328be373c7cad0293d9589",
+      "src": "https://github.com/MeanderingProgrammer/render-markdown.nvim"
+    },
+    "stoic.nvim": {
+      "rev": "cb96c3014afc4298eff7ba05972a191d380a3be6",
+      "src": "https://github.com/prjctimg/stoic.nvim"
+    },
+    "yanky.nvim": {
+      "rev": "dd6689fdda85f66cab7d9b1a1664625f3be0920d",
+      "src": "https://github.com/gbprod/yanky.nvim"
+    }
+  }
+}
