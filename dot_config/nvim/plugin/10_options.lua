@@ -140,12 +140,19 @@ vim.o.shell          = 'fish' -- Shell used by `:terminal`
 vim.o.updatetime     = 1000   -- Faster CursorHold (signature/hover popup)
 -- stylua: ignore end
 
--- Clipboard sync via Wayland's wl-copy/wl-paste (Ghostty runs on Wayland here).
--- Explicit provider instead of relying on Neovim's xclip/xsel auto-detection.
+-- Clipboard sync via X11's xsel (through XWayland; `DISPLAY` is set here).
+--
+-- IMPORTANT: On this ChromeOS/Crostini setup `wl-paste` BLOCKS FOREVER on the
+-- regular clipboard -- even when a clipboard owner exists. The Wayland data
+-- device exposed by sommelier never delivers the selection, so `wl-paste` (and
+-- therefore Neovim) hangs. That froze startup because 'yanky.nvim' reads the
+-- default register on `VimEnter`, and with 'clipboard=unnamedplus' the default
+-- register is `+` (the system clipboard). `xsel` works, so set it explicitly
+-- instead of relying on Neovim's Wayland-first auto-detection.
 vim.g.clipboard = {
-  name = 'wl-clipboard',
-  copy = { ['+'] = 'wl-copy', ['*'] = 'wl-copy' },
-  paste = { ['+'] = 'wl-paste --no-newline', ['*'] = 'wl-paste --no-newline' },
+  name = 'xsel',
+  copy = { ['+'] = 'xsel -b -i', ['*'] = 'xsel -p -i' },
+  paste = { ['+'] = 'xsel -b -o', ['*'] = 'xsel -p -o' },
   cache_enabled = true,
 }
 vim.o.clipboard = 'unnamedplus'

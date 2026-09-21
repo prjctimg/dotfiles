@@ -439,7 +439,7 @@ map({ 'n', 'i' }, '<A-u>', function() -- undo tree
     vim.notify('No undo history in this buffer', vim.log.levels.INFO)
     return
   end
-  require('mini.pick').open({
+  require('mini.pick').start({
     source = {
       items = items,
       name = 'Undo history',
@@ -464,7 +464,7 @@ map({ 'n', 'i' }, '<A-w>', function()
     if vim.fn.isdirectory(dir) == 1 then table.insert(items, dir) end
   end
   table.sort(items)
-  require('mini.pick').open({
+  require('mini.pick').start({
     source = {
       items = items,
       name = 'Workspace',
@@ -482,7 +482,7 @@ map({ 'n', 'i' }, '<A-:>', function() -- git log
     vim.notify('Not a git repository', vim.log.levels.WARN)
     return
   end
-  require('mini.pick').open({
+  require('mini.pick').start({
     source = {
       items = items,
       name = 'Git log',
@@ -502,16 +502,19 @@ map({ 'n', 'i' }, '<A-j>', function() -- jumps
   local jl = vim.fn.getjumplist()
   local items = {}
   for _, j in ipairs(jl[1]) do
-    local bufnr, lnum, col = j.buf, j.lnum, j.col
-    local line = (vim.api.nvim_buf_get_lines(bufnr, lnum - 1, lnum, false)[1] or ''):gsub('%s+', ' '):sub(1, 60)
-    table.insert(items, {
-      nr = bufnr,
-      ln = lnum,
-      cc = col,
-      text = string.format('%4d  %s  │  %s', lnum, vim.fn.fnamemodify(j.fname, ':t'), line),
-    })
+    local bufnr, lnum, col = j.bufnr, j.lnum, j.col
+    if vim.api.nvim_buf_is_valid(bufnr) then
+      local line = (vim.api.nvim_buf_get_lines(bufnr, lnum - 1, lnum, false)[1] or ''):gsub('%s+', ' '):sub(1, 60)
+      local name = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ':t')
+      table.insert(items, {
+        nr = bufnr,
+        ln = lnum,
+        cc = col,
+        text = string.format('%4d  %s  │  %s', lnum, name, line),
+      })
+    end
   end
-  require('mini.pick').open({
+  require('mini.pick').start({
     source = {
       items = items,
       name = 'Jumps',
