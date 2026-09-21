@@ -2,3 +2,6 @@
 *.bak.*
 *.log
 extension-errors.log
+
+# Never track nested git repositories that live inside config dirs
+dot_config/*/dot_git/

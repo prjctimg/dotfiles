@@ -1,0 +1,9 @@
+# Never manage the nested `.git` directories that live inside these config dirs.
+#
+# They were accidentally tracked in the past (and applied to the target). If
+# they match this file, chezmoi leaves the real repositories on disk untouched
+# instead of trying to manage or remove them.
+.config/fish/.git
+.config/ghostty/.git
+.config/nvim/.git
+.config/wezterm/.git
