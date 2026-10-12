@@ -12,6 +12,10 @@
       "rev": "6cd7280adead7f586db6fccbd15d2cac7e2188b9",
       "src": "https://github.com/rafamadriz/friendly-snippets"
     },
+    "gtm.nvim": {
+      "rev": "bc505d12eb8905cb4d3db15101878f3192aafcdc",
+      "src": "https://github.com/prjctimg/gtm.nvim"
+    },
     "grug-far.nvim": {
       "rev": "11595bf747edc270bce2069d1020502ad4ae56cf",
       "src": "https://github.com/MagicDuck/grug-far.nvim"

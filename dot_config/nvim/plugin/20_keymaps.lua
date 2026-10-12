@@ -57,8 +57,10 @@ Config.leader_group_clues = {
   { mode = 'n', keys = '<Leader>l', desc = '+Language' },
   { mode = 'n', keys = '<Leader>m', desc = '+Map' },
   { mode = 'n', keys = '<Leader>o', desc = '+Other' },
+  { mode = 'n', keys = '<Leader>q', desc = '+Quit' },
   { mode = 'n', keys = '<Leader>s', desc = '+Session' },
   { mode = 'n', keys = '<Leader>t', desc = '+Terminal/Config' },
+  { mode = 'n', keys = '<Leader>u', desc = '+Utility' },
   { mode = 'n', keys = '<Leader>v', desc = '+Visits' },
 
   { mode = 'x', keys = '<Leader>g', desc = '+Git' },
@@ -251,11 +253,108 @@ nmap_leader('vL', '<Cmd>lua MiniVisits.remove_label()<CR>',       'Remove label'
 -- Personal ===================================================================
 -- Ported from the previous LazyVim config ('lua/config/keymaps.lua').
 -- Helper for the "raw" (remappable, silent) mappings used below.
-local map = function(mode, key, rhs)
-  vim.keymap.set(mode, key, rhs, { noremap = false, silent = true })
+local map = function(mode, key, rhs, opts)
+  vim.keymap.set(mode, key, rhs, vim.tbl_extend('force', { noremap = false, silent = true }, opts or {}))
 end
 
--- General ====================================================================
+-- Undo-tree picker (native; no undotree plugin needed). Shared by `<Leader>u`
+-- and `<A-u>`. Forward-declared here so the Leader mapping can reference it.
+local undo_tree = function()
+  local und = vim.fn.undotree()
+  local items = {}
+  for _, e in ipairs(und.entries or {}) do
+    if e.seq > 0 then
+      local mark = (e.seq == und.seq_cur) and '▶ ' or (e.newhead and '·  ' or '   ')
+      local n = e.changes or 1
+      local changes = (n >= 2) and (' (' .. n .. ' changes)') or ''
+      local kind = e.save and 'save' or 'undo'
+      table.insert(items, {
+        id = e.seq,
+        text = string.format('%s%s %s%s', mark, os.date('%H:%M:%S', e.time or und.time_cur or 0), kind, changes),
+      })
+    end
+  end
+  if #items == 0 then
+    vim.notify('No undo history in this buffer', vim.log.levels.INFO)
+    return
+  end
+  require('mini.pick').start({
+    source = {
+      items = items,
+      name = 'Undo history',
+      choose = function(item) vim.cmd('undo ' .. item.id) end,
+    },
+  })
+end
+
+-- ╭──────────────────────────────────────────────────────────╮
+-- │ LazyVim-style buffer mappings (ported from lazyvim)    │
+-- ╰──────────────────────────────────────────────────────────╯
+
+-- Switch to alternate buffer
+map('n', '<Leader><Leader>', '<Cmd>b#<CR>', { desc = 'Switch to alternate buffer' })
+
+-- Buffer navigation
+map('n', '<Leader>bn', '<Cmd>bnext<CR>', { desc = 'Next buffer' })
+map('n', '<Leader>bp', '<Cmd>bprevious<CR>', { desc = 'Previous buffer' })
+-- Delete all other listed buffers (LazyVim `<Leader>bo`)
+map('n', '<Leader>bo', function()
+  local cur = vim.api.nvim_get_current_buf()
+  for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+    if bufnr ~= cur and vim.api.nvim_buf_is_loaded(bufnr) and vim.bo[bufnr].buflisted then
+      pcall(vim.api.nvim_buf_delete, bufnr, { force = false })
+    end
+  end
+end, { desc = 'Delete other buffers' })
+
+-- ╭──────────────────────────────────────────────────────────╮
+-- │ LazyVim-style editing mappings                         │
+-- ╰──────────────────────────────────────────────────────────╯
+
+-- Comment toggle (LazyVim `<Leader>/`); the command palette moved to `<Leader>:`
+map('n', '<Leader>/', 'gcc', { desc = 'Comment toggle' })
+map('v', '<Leader>/', 'gc', { desc = 'Comment toggle' })
+map('n', '<Leader>:', '<Cmd>Pick commands<CR>', { desc = 'Command palette' })
+
+-- Undo tree (native picker; undotree plugin is not installed)
+map('n', '<Leader>u', undo_tree, { desc = 'Undo tree' })
+
+-- Native `<Leader>.`-style dot-repeat is kept untouched (registers, counts,
+-- and repeat via `:h .` work as expected; no `:repeat` remap).
+
+-- ╭──────────────────────────────────────────────────────────╮
+-- │ LazyVim-style window/terminal mappings                 │
+-- ╰──────────────────────────────────────────────────────────╯
+
+-- Undo/Redo with Ctrl+Z/Y (LazyVim style)
+map('n', '<C-z>', '<cmd>undo<CR>', { desc = 'Undo' })
+map('n', '<C-y>', '<cmd>redo<CR>', { desc = 'Redo' })
+
+-- LazyVim-parity additions ------------------------------------------------
+map('n', '<Leader>qq', '<Cmd>qa<CR>', { desc = 'Quit all' })
+map('n', '<Leader>nh', function() vim.cmd('nohlsearch') end, { desc = 'Clear search highlight' })
+map('n', '<Leader>ur', function()
+  vim.cmd('nohlsearch')
+  vim.cmd('redraw!')
+end, { desc = 'Redraw / clear search highlight' })
+map('n', '<Leader>fn', function() vim.cmd('enew') end, { desc = 'New file' })
+-- Toggle auto-format on save (see conform `format_on_save` in '40_plugins.lua').
+-- `<Leader>uf` is per-buffer, `<Leader>uF` is global (LazyVim parity).
+map('n', '<Leader>uf', function()
+  vim.b.disable_autoformat = not vim.b.disable_autoformat
+  vim.notify('Autoformat (buffer): ' .. (vim.b.disable_autoformat and 'off' or 'on'))
+end, { desc = 'Toggle autoformat (buffer)' })
+map('n', '<Leader>uF', function()
+  vim.g.disable_autoformat = not vim.g.disable_autoformat
+  vim.notify('Autoformat (global): ' .. (vim.g.disable_autoformat and 'off' or 'on'))
+end, { desc = 'Toggle autoformat (global)' })
+
+-- (the floating-terminal mappings live in the "Floating terminals" section
+-- below; this keeps a single upvalue-based implementation)
+
+-- ╭──────────────────────────────────────────────────────────╮
+-- │ General                                                │
+-- ╰──────────────────────────────────────────────────────────╯
 
 -- Enter Command-line mode (was Normal mode in the previous config)
 map('n', '<C-;>', ':')
@@ -365,6 +464,9 @@ if vim.fn.executable('yazi') == 1 then
   map({ 'n', 'i', 'x', 't', 'v' }, '<A-F>', float_term('yazi'))
 end
 map({ 'n', 'i' }, '<A-g>', float_term('lazygit'))
+if vim.fn.executable('lazygit') == 1 then
+  map('n', '<Leader>gg', float_term('lazygit'), { desc = 'Lazygit (float)' })
+end
 
 -- Zen / dashboard / scratch (were 'Snacks.zen', 'Snacks.dashboard', 'Snacks.scratch')
 local zen_on = false
@@ -400,7 +502,7 @@ end)
 -- Misc commands
 map({ 'n', 'i' }, '<C-9>', '<Cmd>lua MiniSessions.restart()<CR>') -- was ':restart'
 map({ 'n', 'i' }, '<A-1>', '<cmd>Nerdy<cr>')
-map({ 'n', 'i' }, '<A-2>', '<cmd>InsertEmoji<cr>')
+map({ 'n', 'i' }, '<A-2>', '<cmd>Emoji<cr>') -- emoji picker
 
 -- Picker palette (were 'Snacks.picker' mappings) =============================
 -- Re-targeted at MiniMax's `:Pick` commands and 'mini.extra' pickers.
@@ -420,33 +522,7 @@ map({ 'n', 'i' }, '<A-X>', function() vim.cmd('Pick diagnostic scope="all"') end
 map({ 'n', 'i' }, '<A-x>', function() vim.cmd('Pick diagnostic scope="current"') end) -- buffer diagnostics
 map({ 'n', 'i' }, '<A-c>', extra_pick('commands')) -- commands
 map({ 'n', 'i' }, "<A-'>", function() vim.cmd('Pick grep pattern="<cword>"') end) -- smart
-map({ 'n', 'i' }, '<A-u>', function() -- undo tree
-  local und = vim.fn.undotree()
-  local items = {}
-  for _, e in ipairs(und.entries or {}) do
-    if e.seq > 0 then
-      local mark = (e.seq == und.seq_cur) and '▶ ' or (e.newhead and '·  ' or '   ')
-      local n = e.changes or 1
-      local changes = (n >= 2) and (' (' .. n .. ' changes)') or ''
-      local kind = e.save and 'save' or 'undo'
-      table.insert(items, {
-        id = e.seq,
-        text = string.format('%s%s %s%s', mark, os.date('%H:%M:%S', e.time or und.time_cur or 0), kind, changes),
-      })
-    end
-  end
-  if #items == 0 then
-    vim.notify('No undo history in this buffer', vim.log.levels.INFO)
-    return
-  end
-  require('mini.pick').start({
-    source = {
-      items = items,
-      name = 'Undo history',
-      choose = function(item) vim.cmd('undo ' .. item.id) end,
-    },
-  })
-end)
+map({ 'n', 'i' }, '<A-u>', undo_tree) -- undo tree
 map({ 'n', 'i' }, '<A-s>', function() vim.cmd('Pick lsp scope="document_symbol"') end) -- lsp_symbols
 map({ 'n', 'i' }, '<A-S>', function() vim.cmd('Pick lsp scope="workspace_symbol_live"') end) -- lsp_workspace_symbols
 map({ 'n', 'i' }, '<A-y>', function() vim.cmd('YankyRingHistory') end) -- yank history

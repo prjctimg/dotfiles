@@ -136,6 +136,16 @@ now(function()
     if timer == nil then return '' end
     return '󰄉 ' .. tostring(timer)
   end
+  -- gtm.nvim compact status. Hidden until the daemon is connected and a track
+  -- is actually playing (its idle statusline is a lone space, which we drop).
+  local gtm_section = function()
+    local ok, gtm = pcall(require, 'gtm')
+    if not ok then return '' end
+    if not (gtm._ipc and gtm._ipc._connected) then return '' end
+    local ok2, text = pcall(function() return gtm.statusline() end)
+    if not ok2 or text == nil or text == ' ' then return '' end
+    return text
+  end
   statusline.setup({
     content = {
       active = function()
@@ -146,11 +156,12 @@ now(function()
         local location = statusline.section_location({ trunc_width = 75 })
         local search = statusline.section_searchcount({ trunc_width = 75 })
         local pomo = pomo_section()
+        local gtm = gtm_section()
         return statusline.combine_groups({
           { hl = mode_hl, strings = { mode } },
           { hl = 'MiniStatuslineFilename', strings = { statusline.section_filename({ trunc_width = 140 }) } },
           { hl = 'MiniStatuslineDevinfo', strings = { git, diagnostics, lsp, search, location } },
-          { hl = 'MiniStatuslineNormal', strings = { pomo } },
+          { hl = 'MiniStatuslineNormal', strings = { pomo, gtm } },
         })
       end,
     },

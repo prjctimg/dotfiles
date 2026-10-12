@@ -144,6 +144,16 @@ later(function()
       -- Allow formatting from LSP server if no dedicated formatter is available
       lsp_format = 'fallback',
     },
+    -- Auto-format on save: runs the formatter above, falling back to attached
+    -- LSP formatting when no dedicated formatter exists for a filetype. This
+    -- covers every configured LSP (see 'vim.lsp.enable()' above). Toggle with
+    -- `<Leader>uf` (buffer) / `<Leader>uF` (global) — see '20_keymaps.lua'.
+    format_on_save = function(bufnr)
+      if vim.g.disable_autoformat or vim.b[bufnr].disable_autoformat then
+        return
+      end
+      return { timeout_ms = 500, lsp_format = 'fallback' }
+    end,
     -- Map of filetype to formatters
     -- Make sure that necessary CLI tool is available
     formatters_by_ft = {
@@ -249,8 +259,16 @@ later(function()
   -- stoic.nvim (needs explicit setup; was `opts = {}` in lazy.nvim)
   pcall(function() require('stoic').setup({}) end)
 
-  -- emoji.nvim
-  pcall(function() require('emoji').setup({ enable_cmp_integration = false, ui_select = true }) end)
+  -- emoji.nvim (vim.pack installs plugins under stdpath('data')/site/pack/core/opt,
+  -- NOT the lazy.nvim layout the plugin's defaults assume — point `plugin_path`
+  -- at the real install location or `:Emoji` opens an empty picker)
+  pcall(function()
+    require('emoji').setup({
+      enable_cmp_integration = false,
+      ui_select = true,
+      plugin_path = vim.fn.stdpath('data') .. '/site/pack/core/opt/',
+    })
+  end)
 
   -- nerdy.nvim (glyph picker; may need a picker integration at runtime)
   pcall(function() require('nerdy').setup({ max_recents = 30, add_default_keybindings = true }) end)
@@ -274,6 +292,24 @@ later(function()
       },
     },
   })
+end)
+
+-- gtm.nvim (music player UI; talks to the `gtmd` daemon over a Unix socket).
+-- The plugin's own 'plugin/gtm.lua' loader auto-setups with defaults whenever
+-- lazy.nvim is absent. Opt out by setting `vim.g.loaded_gtm` BEFORE the plugin
+-- loads, so the explicit setup below is the only one. (`gtm.setup` is
+-- idempotent, so even a load-order edge case ends with one registration.)
+later(function()
+  vim.g.loaded_gtm = true
+  add({ 'https://github.com/prjctimg/gtm.nvim' })
+
+  local ok, gtm = pcall(require, 'gtm')
+  if ok then
+    gtm.setup({
+      statusline_format = 'compact',
+      theme = { reactive = false },
+    })
+  end
 end)
 
 -- Honorable mentions =========================================================
