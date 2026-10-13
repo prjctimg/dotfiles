@@ -13,7 +13,7 @@
       "src": "https://github.com/rafamadriz/friendly-snippets"
     },
     "gtm.nvim": {
-      "rev": "9fe9bc93a01949fb5fb074722d09d52ddc31a4ca",
+      "rev": "dd80170b916fb0a88f58665e4deac5302e550531",
       "src": "https://github.com/prjctimg/gtm.nvim"
     },
     "grug-far.nvim": {

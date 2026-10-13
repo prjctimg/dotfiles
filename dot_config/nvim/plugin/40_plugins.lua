@@ -307,7 +307,7 @@ later(function()
   if ok then
     gtm.setup({
       statusline_format = 'compact',
-      theme = { reactive = false },
+      theme = { reactive = true, intensity = 0.22, scope = 'global' },
     })
   end
 end)
