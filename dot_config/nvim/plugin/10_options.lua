@@ -233,22 +233,100 @@ local show_signature_or_hover = function()
   end)
 end
 
+-- WGSL validation ============================================================
+
+-- There is no `wgsl_analyzer` binary installed (see 'vim.lsp.enable()' in
+-- 'plugin/40_plugins.lua' for how to add it), so WGSL files get no real language
+-- server. `naga` (the Rust shader translator, `cargo install naga-cli`) parses
+-- and validates a shader when given no output file, which is enough to surface
+-- type and binding errors as ordinary diagnostics.
+--
+-- This runs on write, not on CursorHold: validation is a whole-file parse, so
+-- per-keystroke checking would be wasteful. Once `wgsl_analyzer` is installed it
+-- takes over and these diagnostics stop appearing -- the server reports the same
+-- class of problem.
+if vim.fn.executable('naga') == 1 then
+  -- `set()` takes a namespace *name* but `reset()` wants the numeric namespace,
+  -- so resolve it once and use the number everywhere.
+  local NS = vim.api.nvim_create_namespace('naga')
+
+  local function naga_check(buf)
+    local name = vim.api.nvim_buf_get_name(buf)
+    if name == '' or vim.bo[buf].buftype ~= '' then
+      return
+    end
+
+    -- `naga` colourises and exits non-zero precisely when it has something to
+    -- say, so the exit status is not an error check here -- the parsed output
+    -- is. Strip ANSI first or the messages arrive full of escape codes.
+    local out = vim.fn.system({ 'naga', name })
+    out = tostring(out):gsub('\27%[[0-9;]*m', '')
+    if out == '' then
+      vim.diagnostic.reset(NS, buf)
+      return
+    end
+
+    local diags = {}
+    -- `naga` groups each problem as a headline followed by a caret location:
+    --   error: no definition in scope for identifier: `x`
+    --     ┌─ file.wgsl:5:28
+    -- So remember the headline and attach it to the location that follows it.
+    local pending = nil
+    for line in out:gmatch('[^\n]+') do
+      local msg = line:match('^error:%s*(.+)$')
+      if msg then
+        pending = msg
+      elseif pending then
+        local lnum, col = line:match('┌─%s*[^:]-:(%d+):(%d+)')
+        if lnum then
+          diags[#diags + 1] = {
+            lnum = math.max(0, tonumber(lnum) - 1),
+            col = math.max(0, tonumber(col) - 1),
+            -- A range is reported under a single caret in the `= ...` detail
+            -- lines; one start position keeps the squiggle where the caret is.
+            message = pending,
+            severity = vim.diagnostic.severity.ERROR,
+            source = 'naga',
+          }
+          pending = nil
+        end
+      end
+    end
+
+    if #diags > 0 then
+      vim.diagnostic.set(NS, buf, diags)
+    else
+      vim.diagnostic.reset(NS, buf)
+    end
+  end
+
+  Config.new_autocmd({ 'BufWritePost' }, { '*.wgsl' }, function(ev)
+    -- Validate asynchronously so a slow parse never blocks the write.
+    vim.schedule(function() naga_check(ev.buf) end)
+  end, 'Validate WGSL with naga')
+end
+
 vim.api.nvim_create_autocmd('CursorHold', {
   pattern = {
     '*.sh',
     '*.fish',
     '*.ts',
-    '*.js',
     '*.tsx',
+    '*.js',
     '*.jsx',
+    '*.mjs',
     '*.cjs',
-    '*.zig',
     '*.lua',
     '*.go',
+    '*.zig',
+    '*.rs',
+    '*.py',
     '*.css',
+    '*.html',
+    '*.toml',
     '*.yml',
     '*.yaml',
-    '*.wglsl',
+    '*.wgsl',
   },
   callback = function()
     -- Skip if a floating window is already showing (user is reading hover/sig)

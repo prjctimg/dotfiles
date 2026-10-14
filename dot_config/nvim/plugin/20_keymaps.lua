@@ -186,13 +186,31 @@ xmap_leader('gs', '<Cmd>lua MiniGit.show_at_cursor()<CR>', 'Show at selection')
 -- NOTE: most LSP mappings represent a more structured way of replacing built-in
 -- LSP mappings (like `:h gra` and others). This is needed because `gr` is mapped
 -- by an "replace" operator in 'mini.operators' (which is more commonly used).
+
+-- Rename through 'inc_rename.nvim' (setup in 'plugin/40_plugins.lua'): it
+-- previews the rename in the command-preview window as the new name is typed, so
+-- a rename spanning many files can be reviewed before it is applied instead of
+-- being committed blind. `:IncRename` is a no-op when no attached server offers
+-- `textDocument/rename`, so fall back to the plain LSP rename in that case --
+-- that keeps the key useful for servers that implement `rename` without
+-- `prepareRename`, and avoids a dead key where there is no server at all.
+local inc_rename = function()
+  for _, client in ipairs(vim.lsp.get_clients({ bufnr = 0 })) do
+    if client:supports_method('textDocument/rename') then
+      vim.cmd('IncRename')
+      return
+    end
+  end
+  vim.lsp.buf.rename()
+end
+
 nmap_leader('la', '<Cmd>lua vim.lsp.buf.code_action()<CR>',     'Actions')
 nmap_leader('ld', '<Cmd>lua vim.diagnostic.open_float()<CR>',   'Diagnostic popup')
 nmap_leader('lf', '<Cmd>lua require("conform").format()<CR>',   'Format')
 nmap_leader('li', '<Cmd>lua vim.lsp.buf.implementation()<CR>',  'Implementation')
 nmap_leader('lh', '<Cmd>lua vim.lsp.buf.hover()<CR>',           'Hover')
 nmap_leader('ll', '<Cmd>lua vim.lsp.codelens.run()<CR>',        'Lens')
-nmap_leader('lr', '<Cmd>lua vim.lsp.buf.rename()<CR>',          'Rename')
+nmap_leader('lr', inc_rename,                                   'Rename')
 nmap_leader('lR', '<Cmd>lua vim.lsp.buf.references()<CR>',      'References')
 nmap_leader('ls', '<Cmd>lua vim.lsp.buf.definition()<CR>',      'Source definition')
 nmap_leader('lt', '<Cmd>lua vim.lsp.buf.type_definition()<CR>', 'Type definition')
@@ -319,6 +337,120 @@ map('n', '<Leader>:', '<Cmd>Pick commands<CR>', { desc = 'Command palette' })
 -- Undo tree (native picker; undotree plugin is not installed)
 map('n', '<Leader>u', undo_tree, { desc = 'Undo tree' })
 
+-- ╭──────────────────────────────────────────────────────────╮
+-- │ <Leader>u — UI (ported from LazyVim's "ui" group)        │
+-- ╰──────────────────────────────────────────────────────────╯
+
+-- LazyVim's <Leader>u group is one consistent "flip a visual/editor setting"
+-- namespace, so the two-key convention applies: lowercase flips it, uppercase
+-- where it makes sense picks the *inverse* or a stronger variant. The mapping
+-- set below is LazyVim's, expressed through the 'mini.nvim' equivalents this
+-- config actually has; a setting with no counterpart here (dimming, smooth
+-- scroll, indent guides, git signs) is omitted rather than faked with something
+-- that behaves differently.
+--
+-- The most valuable of these are the *display* toggles: `uL` and `ul` between
+-- absolute and relative numbers, `uZ` between zoom and normal, and `uz` for a
+-- full zen view -- together they cover "make this file easier to read".
+local toggle = function(get, set, desc)
+  return function()
+    set(not get())
+    vim.cmd.redraw()
+  end, desc
+end
+
+-- Editing / view toggles
+map('n', '<Leader>uw', toggle(
+  function() return vim.wo.wrap end,
+  function(v) vim.wo.wrap = v end,
+  'Toggle wrap'
+), { desc = 'Toggle wrap' })
+map('n', '<Leader>us', toggle(
+  function() return vim.wo.spell end,
+  function(v) vim.wo.spell = v end,
+  'Toggle spell'
+), { desc = 'Toggle spelling' })
+
+-- `relativenumber` is on with `number`, which is how MiniMax (and LazyVim) show
+-- line numbers; `ul` turns the pair off entirely, `uL` flips which one is the
+-- "absolute" one. Keep `number` implied by `relativenumber` the same way round.
+map('n', '<Leader>uL', toggle(
+  function() return vim.wo.relativenumber end,
+  function(v) vim.wo.relativenumber = v end,
+  'Toggle relative number'
+), { desc = 'Toggle relative number' })
+map('n', '<Leader>ul', toggle(
+  function() return vim.o.number and vim.o.relativenumber end,
+  function(v) vim.o.number = v; vim.o.relativenumber = v end,
+  'Toggle line numbers'
+), { desc = 'Toggle line numbers' })
+
+-- Diagnostics are on by default (see the 'vim.diagnostic.config' above); turn
+-- the whole subsystem off for a quiet look at the code.
+map('n', '<Leader>ud', toggle(
+  function() return not vim.diagnostic.is_enabled() end,
+  function(v) vim.diagnostic.enable(v) end,
+  'Toggle diagnostics'
+), { desc = 'Toggle diagnostics' })
+
+-- Conceal hides Markdown/Wiki link targets and similar markup by default; raise
+-- the level to reveal the raw text.
+map('n', '<Leader>uc', toggle(
+  function() return vim.wo.conceallevel == 0 end,
+  function(v) vim.wo.conceallevel = v and 2 or 0 end,
+  'Toggle conceal'
+), { desc = 'Toggle conceal level' })
+
+-- Tree-sitter highlighting toggle. Stopping the highlighter leaves the parser
+-- in place (so textobjects keep working) but removes the syntax colours, which
+-- is the quickest way to judge a file's structure vs. its styling.
+map('n', '<Leader>uT', toggle(
+  function() return vim.treesitter.highlighter.active[vim.api.nvim_get_current_buf()] == nil end,
+  function(off)
+    local buf = vim.api.nvim_get_current_buf()
+    if off then
+      pcall(vim.treesitter.highlighter.stop, buf)
+    else
+      pcall(vim.treesitter.start, buf)
+    end
+  end,
+  'Toggle treesitter highlight'
+), { desc = 'Toggle Treesitter highlight' })
+
+-- Light / dark. `background` is an option Vim applies to colorschemes that
+-- respect it, so setting it is the portable half of a dark/light switch.
+map('n', '<Leader>ub', toggle(
+  function() return vim.o.background == 'dark' end,
+  function(v) vim.o.background = v and 'dark' or 'light' end,
+  'Toggle dark background'
+), { desc = 'Toggle dark background' })
+
+-- Zoom (`uZ`) is 'mini.misc' zoom: one window fills the screen, so a file can be
+-- read without the splits on either side. `uz` is the fuller zen treatment the
+-- keymaps section already uses for `<A-z>`.
+map('n', '<Leader>uZ', function()
+  MiniMisc.zoom()
+end, { desc = 'Toggle zoom' })
+map('n', '<Leader>uz', function()
+  -- Reuse the `<A-z>` zen body so the two entry points cannot drift.
+  local keys = vim.api.nvim_get_keymap('n')
+  local zen = keys[vim.fn.index(keys, { pattern = '<A-z>' })]
+  if zen and zen.callback then
+    return zen.callback()
+  end
+  MiniMisc.zoom()
+end, { desc = 'Toggle zen mode' })
+
+-- Not in LazyVim's group, but it belongs here and was already half-mapped: clear
+-- the search highlight and force a repaint. `un` mirrors LazyVim's
+-- "Dismiss All Notifications"; the notify history stays reachable via `en`.
+map('n', '<Leader>un', function()
+  MiniNotify.dismiss()
+end, { desc = 'Dismiss notifications' })
+map('n', '<Leader>uC', function()
+  require('mini.extra').pickers.colorschemes()
+end, { desc = 'Colorschemes' })
+
 -- Native `<Leader>.`-style dot-repeat is kept untouched (registers, counts,
 -- and repeat via `:h .` work as expected; no `:repeat` remap).
 
@@ -339,15 +471,17 @@ map('n', '<Leader>ur', function()
 end, { desc = 'Redraw / clear search highlight' })
 map('n', '<Leader>fn', function() vim.cmd('enew') end, { desc = 'New file' })
 -- Toggle auto-format on save (see conform `format_on_save` in '40_plugins.lua').
--- `<Leader>uf` is per-buffer, `<Leader>uF` is global (LazyVim parity).
+-- LazyVim puts the *global* switch on the lowercase key and the *buffer* switch
+-- on the uppercase one (`uf` global, `uF` buffer); this config had them the
+-- other way round, so both are corrected here to match.
 map('n', '<Leader>uf', function()
-  vim.b.disable_autoformat = not vim.b.disable_autoformat
-  vim.notify('Autoformat (buffer): ' .. (vim.b.disable_autoformat and 'off' or 'on'))
-end, { desc = 'Toggle autoformat (buffer)' })
-map('n', '<Leader>uF', function()
   vim.g.disable_autoformat = not vim.g.disable_autoformat
   vim.notify('Autoformat (global): ' .. (vim.g.disable_autoformat and 'off' or 'on'))
 end, { desc = 'Toggle autoformat (global)' })
+map('n', '<Leader>uF', function()
+  vim.b.disable_autoformat = not vim.b.disable_autoformat
+  vim.notify('Autoformat (buffer): ' .. (vim.b.disable_autoformat and 'off' or 'on'))
+end, { desc = 'Toggle autoformat (buffer)' })
 
 -- (the floating-terminal mappings live in the "Floating terminals" section
 -- below; this keeps a single upvalue-based implementation)
@@ -361,7 +495,12 @@ map('n', '<C-;>', ':')
 
 -- LSP actions
 map({ 'n', 'i' }, '<A-\\>', function() vim.lsp.buf.code_action() end)
-map({ 'n', 'i', 'v' }, '<A-r>', function() vim.lsp.buf.rename() end)
+
+-- Rename is defined once in the `<Leader>l` section above (`inc_rename`) and
+-- reused here, so `<Leader>lr`, `<A-r>` and `grn` can never disagree about how
+-- a rename behaves.
+map({ 'n', 'i', 'v' }, '<A-r>', inc_rename, { desc = 'Rename (preview)' })
+map('n', 'grn', inc_rename, { desc = 'Rename (preview)' })
 
 -- Find & replace (was 'grug-far' in the previous config)
 map({ 'n', 'i' }, '<A-f>', function()

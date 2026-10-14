@@ -50,11 +50,20 @@ now_if_args(function()
   -- Define languages which will have parsers installed and auto enabled
   -- After changing this, restart Neovim once to install necessary parsers. Wait
   -- for the installation to finish before opening a file for added language(s).
+  --
+  -- NOTE: a parser shipping with Neovim still has to be listed here. Tree-sitter
+  -- is only *started* by the 'FileType' autocmd below, so a missing entry means
+  -- no highlighting even when `parser/<lang>.so` exists ('wgsl' was exactly this:
+  -- bundled parser, never started). Neovim 0.12 bundles: c, lua, markdown,
+  -- markdown_inline, query, vim, vimdoc, wgsl, and all of the ones below.
   local languages = {
     -- Bundled with Neovim
     'lua',
     'vimdoc',
     'markdown',
+    'markdown_inline',
+    'query',
+    'wgsl',
     -- Personal language set: TS/JS, Rust, Assembly, shell/fish, configs
     'typescript',
     'tsx',
@@ -66,6 +75,15 @@ now_if_args(function()
     'json',
     'toml',
     'yaml',
+    -- Web / styling / scripting / packaging used across the workspace
+    'css',
+    'html',
+    'python',
+    'nix',
+    'git_config',
+    'gitignore',
+    'diff',
+    'regex',
   }
   local isnt_installed = function(lang)
     return #vim.api.nvim_get_runtime_file('parser/' .. lang .. '.*', false) == 0
@@ -121,6 +139,62 @@ now_if_args(function()
     'asm_lsp',         -- Assembly (asm-lsp)
     'bashls',          -- Shell (bash-language-server via npm)
     'fish_lsp',        -- fish shell (fish-lsp via npm, Node-based)
+    -- Shaders, web, scripting and packaging. Each entry resolves its `cmd`
+    -- lazily, so a server with no binary installed is simply skipped instead of
+    -- erroring on startup. Install the binary and the server attaches with no
+    -- further config change:
+    --   wgsl_analyzer  -- cargo install wgsl_analyzer   (WGSL)
+    --   basedpyright  -- pipx/uv/npm  (Python; also provides py.venv handling)
+    --   nixd           -- nix profile install nixd     (Nix)
+    --   cssls / html  -- npm i -g vscode-langservers-extracted
+    'wgsl_analyzer',
+    'basedpyright',
+    'nixd',
+    'cssls',
+    'html',
+  })
+
+  -- Pyright needs the project environment to resolve imports; point it at the
+  -- nearest virtualenv instead of the system Python.
+  vim.lsp.config('basedpyright', {
+    settings = {
+      python = {
+        analysis = { autoSearchPaths = true, useLibraryCodeForTypes = true },
+      },
+    },
+  })
+end)
+
+-- Incremental rename (inc-rename.nvim) =======================================
+
+-- `vim.lsp.buf.rename()` applies the edit blind: you type a new name, it either
+-- works or it doesn't, and there is no way to review a rename that touches
+-- dozens of files before committing to it. 'inc-rename.nvim' instead re-uses
+-- Neovim's command-preview window to run the server's `textDocument/prepareRename`
+-- incrementally as you type, highlighting every reference that would change, so
+-- the rename is reviewed as a preview and only applied on <CR>.
+--
+-- That makes it safe for codebase-wide renames: the preview is the diff. Use
+-- `<Leader>lr` (or `<A-r>`) instead of a bare `vim.lsp.buf.rename()`; both are
+-- mapped in 'plugin/20_keymaps.lua'.
+--
+-- It needs a server that implements `textDocument/rename` and
+-- `textDocument/prepareRename`. With no such server the command reports that
+-- and does nothing, which is why the mappings below fall back to the plain LSP
+-- rename when 'inc_rename' has no rename provider for the buffer.
+later(function()
+  add({ 'https://github.com/smjonas/inc-rename.nvim' })
+  require('inc_rename').setup({
+    -- 'Substitute' matches what Neovim highlights for `*`/`#`, so the preview
+    -- reads as "these are the occurrences" rather than as pending changes.
+    hl_group = 'Substitute',
+    -- Typing an empty name would preview a delete-everything rename, so an
+    -- empty buffer cancels the preview instead.
+    preview_empty_name = false,
+    -- Put the reference preview in the cmdwin rather than over the code.
+    show_message = true,
+    -- A preview is not a real rename; keep it out of ':history'.
+    save_in_cmdline_history = false,
   })
 end)
 
@@ -166,6 +240,12 @@ later(function()
       sh = { 'shfmt' },
       bash = { 'shfmt' },
       fish = { 'fish_indent' },
+      -- `wgsl`, `nix`, `python`, `css` and `html` have no formatter binary
+      -- installed, so they are deliberately NOT listed here: a missing entry
+      -- makes conform report "no formatters available" on every save. They
+      -- format through the attached LSP instead (`lsp_format = 'fallback'`
+      -- above), and `wgsl` is validated on write by `naga` (see the
+      -- 'WGSL validation' section in 'plugin/10_options.lua').
     },
   })
 end)
