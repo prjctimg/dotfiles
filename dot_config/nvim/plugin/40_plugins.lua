@@ -270,6 +270,60 @@ later(function()
   })
 end)
 
+-- Dimming (tint.nvim) ========================================================
+
+-- Desaturates and darkens the windows you are NOT focused in, so the split you
+-- are actually editing is the one that reads as "on". It is what LazyVim's
+-- `<Leader>uD` ("Toggle Dimming") does, expressed without 'snacks.nvim'.
+--
+-- 'tint.nvim' has no external dependencies at all -- it is three Lua files
+-- using only 'vim.api' -- and needs Neovim 0.8+ for the window highlight
+-- namespaces it relies on. It replaces the removed `windowhighlight` trick, so
+-- floating windows and terminals are excluded explicitly below rather than by
+-- losing the old 'Snacks' behaviour.
+later(function()
+  add({ 'https://github.com/levouh/tint.nvim' })
+  local tint = require('tint')
+  local xforms = require('tint.transforms')
+  tint.setup({
+    -- Negative darkens; a positive value would brighten instead. Keep the
+    -- default's subtlety: heavy dimming makes an unfocused split look broken.
+    tint = -45,
+    saturation = 0.6,
+    -- `transform_color` iterates this list with `ipairs`, so it has to be the
+    -- list of functions, not the preset *name*. Two caveats make the preset
+    -- unusable here: the shipped default is `transforms = nil`, and the preset
+    -- is only resolved on a path `setup()` does not always take -- either way
+    -- the first `toggle()` dies with "bad argument #1 to 'ipairs' (table
+    -- expected, got ...)". Passing the two steps explicitly is what actually
+    -- reaches the transform, and it makes the two numbers above self-documenting.
+    transforms = {
+      xforms.saturate(0.6),
+      xforms.tint(-45),
+    },
+    tint_background_colors = true,
+    -- Never dim the status line or the separators -- a grey `StatusLine` next
+    -- to a tinted body reads as a rendering glitch, not as "unfocused".
+    highlight_ignore_patterns = { 'WinSeparator', 'Status.*', 'NormalNC' },
+    window_ignore_function = function(winid)
+      local bufid = vim.api.nvim_win_get_buf(winid)
+      -- Leave terminals and floats alone: dimming a terminal or this plugin's
+      -- own float fights their own colours rather than receding.
+      return vim.bo[bufid].buftype == 'terminal'
+        or vim.api.nvim_win_get_config(winid).relative ~= ''
+    end,
+    -- This option has NO usable default: `tint.setup()` assigns the table it is
+    -- handed straight to its own config (`__.user_config = user_config`) instead
+    -- of merging with `default_config`, so every key left out stays nil and the
+    -- first `toggle()` dies on "attempt to index field 'focus_change_events' (a
+    -- nil value)". Both halves are therefore spelled out here.
+    focus_change_events = {
+      focus = { 'WinEnter' },
+      unfocus = { 'WinLeave' },
+    },
+  })
+end)
+
 -- Find and replace (grug-far.nvim) ===========================================
 --
 -- Interactive "find and replace" for the whole project, toggled from `<A-f>`

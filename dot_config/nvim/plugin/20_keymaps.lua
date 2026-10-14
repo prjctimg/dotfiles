@@ -560,6 +560,14 @@ map({ 'n', 'i' }, '<C-q>', function()
   end
 end)
 
+-- Dimming (tint.nvim) is the one `<Leader>u` toggle that needs a plugin; it has
+-- no external dependencies. `<Leader>uD` matches LazyVim's "Toggle Dimming":
+-- the unfocused split is desaturated and darkened so the window you are
+-- actually editing is the bright one.
+map('n', '<Leader>uD', function()
+  require('tint').toggle()
+end, { desc = 'Toggle dimming' })
+
 -- Floating terminals (was 'Snacks.terminal.toggle')
 local termwin
 local float_term = function(cmd)
