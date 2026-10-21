@@ -320,10 +320,27 @@ return {
         -- Add common bookmarks for every explorer. Example usage inside explorer:
         -- - `'c` to navigate into your config directory
         -- - `g?` to see available bookmarks
+        --
+        -- Every path is a *callable* rather than a string. `set_bookmark()` treats
+        -- a callable as always valid and only resolves (and checks) the directory
+        -- when the bookmark is actually used, whereas a string path is validated
+        -- on the spot with `H.fs_get_type() == 'directory'` and raises
+        -- `(mini.files) Bookmark path should be a valid path...` otherwise.
+        -- A stale string here is fatal in a nasty way: the error is thrown from
+        -- this `MiniFilesExplorerOpen` handler, i.e. in the middle of
+        -- `MiniFiles.open()`, which leaves the explorer half-opened and focus
+        -- stuck in a `minifiles://` buffer. That was exactly the `<A-e>` crash:
+        -- the plugin path pointed at `site/pack/core/opt`, which is a `vim.pack`
+        -- layout this config no longer has (plugins live in `lazy/`).
         local add_marks = function()
-          MiniFiles.set_bookmark('c', vim.fn.stdpath('config'), { desc = 'Config' })
-          local vimpack_plugins = vim.fn.stdpath('data') .. '/site/pack/core/opt'
-          MiniFiles.set_bookmark('p', vimpack_plugins, { desc = 'Plugins' })
+          local config_dir = vim.fn.stdpath('config')
+          local plugins_dir = vim.fn.stdpath('data') .. '/lazy'
+          MiniFiles.set_bookmark('c', function()
+            return config_dir
+          end, { desc = 'Config' })
+          MiniFiles.set_bookmark('p', function()
+            return plugins_dir
+          end, { desc = 'Plugins' })
           MiniFiles.set_bookmark('w', vim.fn.getcwd, { desc = 'Working directory' })
         end
         Config.new_autocmd('User', 'MiniFilesExplorerOpen', add_marks, 'Add bookmarks')
@@ -344,8 +361,14 @@ return {
           MiniFiles.refresh({ content = { filter = show_dotfiles and filter_show or filter_hide } })
         end
         local files_set_cwd = function()
-          local cur_entry_path = MiniFiles.get_fs_entry().path
-          local cur_directory = vim.fs.dirname(cur_entry_path)
+          -- On an empty (or otherwise unloaded) directory there is no entry under
+          -- the cursor, so `get_fs_entry()` returns `nil`; guard instead of
+          -- indexing it and throwing "attempt to index a nil value".
+          local entry = MiniFiles.get_fs_entry()
+          if entry == nil then
+            return
+          end
+          local cur_directory = vim.fs.dirname(entry.path)
           if cur_directory ~= nil then
             vim.fn.chdir(cur_directory)
           end

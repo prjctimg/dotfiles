@@ -297,9 +297,13 @@ local undo_tree = function()
       local n = e.changes or 1
       local changes = (n >= 2) and (' (' .. n .. ' changes)') or ''
       local kind = e.save and 'save' or 'undo'
+      -- `os.date`'s second argument must be a number; be explicit so a `nil` or
+      -- non-numeric time from `undotree()` falls back to 0 (epoch) instead of
+      -- raising "bad argument".
+      local time = tonumber(e.time) or tonumber(und.time_cur) or 0
       table.insert(items, {
         id = e.seq,
-        text = string.format('%s%s %s%s', mark, os.date('%H:%M:%S', e.time or und.time_cur or 0), kind, changes),
+        text = string.format('%s%s %s%s', mark, os.date('%H:%M:%S', time), kind, changes),
       })
     end
   end
@@ -452,7 +456,13 @@ map(
   'n',
   '<Leader>uT',
   toggle(function()
-    return vim.treesitter.highlighter.active[vim.api.nvim_get_current_buf()] == nil
+    -- `vim.treesitter.highlighter` is not a table on all Neovim versions, so
+    -- read it through `pcall` and treat "cannot tell" as "off" rather than
+    -- throwing from the mapping.
+    local ok, active = pcall(function()
+      return vim.treesitter.highlighter.active[vim.api.nvim_get_current_buf()] == nil
+    end)
+    return ok and active or true
   end, function(off)
     local buf = vim.api.nvim_get_current_buf()
     if off then
@@ -488,6 +498,13 @@ map(
 local zoom = function()
   if not MiniMisc then
     pcall(require('mini.misc').setup)
+  end
+  -- `pcall` above can still leave `MiniMisc` unset if the module is not loaded
+  -- yet (it is set up in a `now_if_args()` block, which defers on the starter
+  -- screen); calling into it then throws instead of doing nothing.
+  if not MiniMisc then
+    vim.notify('mini.misc is not loaded yet, try again in a moment', vim.log.levels.WARN)
+    return
   end
   MiniMisc.zoom()
 end
@@ -570,8 +587,19 @@ map({ 'n', 'i', 'v' }, '<A-r>', inc_rename, { desc = 'Rename (preview)' })
 map('n', 'grn', inc_rename, { desc = 'Rename (preview)' })
 
 -- Find & replace (was 'grug-far' in the previous config)
+--
+-- 'grug-far.nvim' loads on `VeryLazy`, which is a *queued* `vim.schedule` (see
+-- 'lazy.nvim''s `M.very_lazy()`), so it is not guaranteed to have run when this
+-- mapping is pressed -- `nvim file.lua` followed immediately by `<A-f>` hits
+-- that gap. `require()` is therefore guarded and the failure is reported rather
+-- than silently swallowed by a bare `pcall`, which is what made the mapping look
+-- like a no-op instead of an error.
 map({ 'n', 'i' }, '<A-f>', function()
-  local grug = require('grug-far')
+  local ok, grug = pcall(require, 'grug-far')
+  if not ok then
+    vim.notify('grug-far is not loaded yet, try again in a moment', vim.log.levels.WARN)
+    return
+  end
   local name = 'grug'
   if grug.has_instance(name) then
     grug.hide_instance(name)
@@ -632,6 +660,11 @@ map({ 'n', 'i' }, '<C-q>', function()
 end)
 
 -- Floating terminals (was 'Snacks.terminal.toggle')
+--
+-- `termwin` is shared by every float, but the window is captured per launch as
+-- `mywin`. Without that, closing a float by hand while its job still runs leaves
+-- the job's `on_exit` pointing at whatever window `termwin` holds *then*, so it
+-- would close an unrelated terminal that was opened in the meantime.
 local termwin
 local float_term = function(cmd)
   return function()
@@ -644,7 +677,7 @@ local float_term = function(cmd)
     local width, height = math.floor(vim.o.columns * 0.85), math.floor(vim.o.lines * 0.85)
     local row = math.floor((vim.o.lines - height) / 2)
     local col = math.floor((vim.o.columns - width) / 2)
-    termwin = vim.api.nvim_open_win(buf, true, {
+    local mywin = vim.api.nvim_open_win(buf, true, {
       relative = 'editor',
       row = row,
       col = col,
@@ -653,12 +686,19 @@ local float_term = function(cmd)
       style = 'minimal',
       border = 'rounded',
     })
+    termwin = mywin
     vim.bo[buf].buflisted = false
     vim.keymap.set('t', '<ESC>', '<C-\\><C-n>', { buffer = buf })
     vim.fn.termopen(cmd, {
       on_exit = function()
-        pcall(vim.api.nvim_win_close, termwin, true)
-        termwin = nil
+        -- Close only the window this job was started in, and only if it is still
+        -- the one `termwin` refers to (otherwise a replacement float is open).
+        if termwin == mywin then
+          termwin = nil
+        end
+        if vim.api.nvim_win_is_valid(mywin) then
+          pcall(vim.api.nvim_win_close, mywin, true)
+        end
       end,
     })
     vim.cmd('startinsert')

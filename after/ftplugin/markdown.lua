@@ -21,8 +21,15 @@ vim.cmd('setlocal spell wrap')
 -- Fold with tree-sitter
 vim.cmd('setlocal foldmethod=expr foldexpr=v:lua.vim.treesitter.foldexpr()')
 
--- Disable built-in `gO` mapping in favor of 'mini.basics'
-vim.keymap.del('n', 'gO', { buffer = 0 })
+-- Disable built-in `gO` mapping in favor of 'mini.basics'. `vim.keymap.del()`
+-- raises `E31: No such mapping` when there is nothing to delete, and this file
+-- is sourced before any mapping exists for it; nothing here defines `gO`
+-- buffer-locally, so an unconditional delete aborted the rest of this file
+-- (including `minisurround_config` below) on every Markdown buffer. Guard it so
+-- the delete only happens when there really is a buffer-local `gO` to remove.
+if vim.fn.maparg('gO', 'n', false, true) ~= '' then
+  pcall(vim.keymap.del, 'n', 'gO', { buffer = 0 })
+end
 
 -- Set markdown-specific surrounding in 'mini.surround'
 vim.b.minisurround_config = {
