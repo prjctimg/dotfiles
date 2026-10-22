@@ -93,7 +93,7 @@ return {
       end
 
       -- Parse 'mdx' files (Markdown + JSX) with the built-in 'markdown' parser so
-      -- highlighting, render-markdown, and image.nvim all work there.
+      -- highlighting and render-markdown work there.
       vim.treesitter.language.register('markdown', 'mdx')
 
       -- Enable tree-sitter after opening a file for a target language
