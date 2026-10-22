@@ -1,3 +1,6 @@
 indent_type = "Spaces"
 indent_width = 2
 column_width = 120
+# The whole config is written with single quotes; without this, stylua defaults to
+# `AutoPreferDouble` and rewrites every string literal on the next run.
+quote_style = "AutoPreferSingle"

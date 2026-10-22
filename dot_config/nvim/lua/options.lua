@@ -12,6 +12,10 @@
 -- See 'after/ftplugin/' for common example.
 --
 -- Notes:
+-- - This is a module, not a `plugin/` file: `init.lua` requires it *before*
+--   `require('lazy').setup()`. Plugin specs are configured while that call runs,
+--   so options have to already be in place by then -- exactly as they were when
+--   this used to be sourced from `plugin/10_options.lua` before `plugin/30_mini.lua`.
 -- - Some options (like `:h 'exrc'`) need to be set before this file is sourced.
 --   Set them directly at the bottom of the 'init.lua' file.
 
@@ -84,9 +88,23 @@ vim.o.iskeyword = '@,48-57,_,192-255,-' -- Treat dash as `word` textobject part
 vim.o.formatlistpat = [[^\s*[0-9\-\+\*]\+[\.\)]*\s\+]]
 
 -- Built-in completion
-vim.o.complete        = '.,w,b,kspell'                  -- Use less sources
 vim.o.completeopt     = 'menuone,noselect,fuzzy,nosort' -- Use custom behavior
 vim.o.completetimeout = 100                             -- Limit sources delay
+
+-- Path completion. `'complete'` has no flag for file names, and the match start
+-- position is derived from |'iskeyword'| (which excludes `/`, `.` and `~`), so a
+-- built-in source can never complete a path. The `F` flag is the one source kind
+-- allowed to start at a non-keyword character, which is exactly what a path
+-- needs; 'lua/completion.lua' implements it.
+--
+-- It has to be named `v:lua.PathComplete`, not just `PathComplete`: `'complete'`
+-- resolves `F{func}` with the same `call_func()` that `:call` uses, and that
+-- lookup only knows built-in functions, `<SNR>` autoload ids and `v:lua.`
+-- names -- a plain global Lua function gives "E117: Unknown function".
+-- A Funcref would work too, but `'complete'` is a string option and the value
+-- would need `\\`, `,` and space escaping, which is unreadable.
+_G.PathComplete = require('completion').path_complete
+vim.o.complete = '.,w,b,kspell,Fv:lua.PathComplete' -- Use less sources + paths
 
 -- Autocommands ===============================================================
 
@@ -95,7 +113,7 @@ vim.o.completetimeout = 100                             -- Limit sources delay
 local f = function() vim.cmd('setlocal formatoptions-=c formatoptions-=o') end
 Config.new_autocmd('FileType', nil, f, "Proper 'formatoptions'")
 
--- There are other autocommands created by 'mini.basics'. See 'plugin/30_mini.lua'.
+-- There are other autocommands created by 'mini.basics'. See 'lua/plugins/mini.lua'.
 
 -- Diagnostics ================================================================
 
@@ -172,7 +190,9 @@ local get_line_diagnostics = function()
 end
 
 local show_diagnostics = function(diags)
-  if #diags == 0 then return end
+  if #diags == 0 then
+    return
+  end
   local msg = {}
   for _, d in ipairs(diags) do
     table.insert(msg, d.message)
@@ -187,7 +207,9 @@ local symbol_at_cursor = function()
 end
 
 local append_diagnostics = function(contents, diags)
-  if #diags == 0 then return contents end
+  if #diags == 0 then
+    return contents
+  end
   table.insert(contents, '')
   table.insert(contents, 'Diagnostics:')
   for _, d in ipairs(diags) do
@@ -202,7 +224,9 @@ local show_signature_or_hover = function()
 
   -- Avoid duplicate trigger if still on the same symbol
   local symbol_id = symbol_at_cursor()
-  if symbol_id == last_symbol then return end
+  if symbol_id == last_symbol then
+    return
+  end
   last_symbol = symbol_id
 
   local diags = get_line_diagnostics()
@@ -235,8 +259,8 @@ end
 
 -- WGSL validation ============================================================
 
--- There is no `wgsl_analyzer` binary installed (see 'vim.lsp.enable()' in
--- 'plugin/40_plugins.lua' for how to add it), so WGSL files get no real language
+-- There is no `wgsl_analyzer` binary installed (see `vim.lsp.enable()` in
+-- 'lua/plugins/lsp.lua' for how to add it), so WGSL files get no real language
 -- server. `naga` (the Rust shader translator, `cargo install naga-cli`) parses
 -- and validates a shader when given no output file, which is enough to surface
 -- type and binding errors as ordinary diagnostics.
@@ -302,7 +326,9 @@ if vim.fn.executable('naga') == 1 then
 
   Config.new_autocmd({ 'BufWritePost' }, { '*.wgsl' }, function(ev)
     -- Validate asynchronously so a slow parse never blocks the write.
-    vim.schedule(function() naga_check(ev.buf) end)
+    vim.schedule(function()
+      naga_check(ev.buf)
+    end)
   end, 'Validate WGSL with naga')
 end
 
@@ -332,7 +358,9 @@ vim.api.nvim_create_autocmd('CursorHold', {
     -- Skip if a floating window is already showing (user is reading hover/sig)
     for _, win in ipairs(vim.api.nvim_list_wins()) do
       local config = vim.api.nvim_win_get_config(win)
-      if config.relative and config.relative ~= '' then return end
+      if config.relative and config.relative ~= '' then
+        return
+      end
     end
     show_signature_or_hover()
   end,

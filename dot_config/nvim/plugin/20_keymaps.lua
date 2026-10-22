@@ -19,7 +19,7 @@ end
 nmap('[p', '<Cmd>exe "iput! " . v:register<CR>', 'Paste Above')
 nmap(']p', '<Cmd>exe "iput "  . v:register<CR>', 'Paste Below')
 
--- Many general mappings are created by 'mini.basics'. See 'plugin/30_mini.lua'
+-- Many general mappings are created by 'mini.basics'. See 'lua/plugins/mini.lua'
 
 -- stylua: ignore start
 -- The next part (until `-- stylua: ignore end`) is aligned manually for easier
@@ -31,7 +31,7 @@ nmap(']p', '<Cmd>exe "iput "  . v:register<CR>', 'Paste Below')
 -- key that is primarily used for "workflow" mappings (opposed to text editing).
 -- Like "open file explorer", "create scratch buffer", "pick from buffers".
 --
--- In 'plugin/10_options.lua' <Leader> is set to <Space>, i.e. press <Space>
+-- In 'lua/options.lua' <Leader> is set to <Space>, i.e. press <Space>
 -- whenever there is a suggestion to press <Leader>.
 --
 -- This config uses a "two key Leader mappings" approach: first key describes
@@ -44,7 +44,7 @@ nmap(']p', '<Cmd>exe "iput "  . v:register<CR>', 'Paste Below')
 -- denotes global and uppercase - local.
 -- Example: `<Leader>fs` / `<Leader>fS` - find workspace/document LSP symbols.
 --
--- Many of the mappings use 'mini.nvim' modules set up in 'plugin/30_mini.lua'.
+-- Many of the mappings use 'mini.nvim' modules set up in 'lua/plugins/mini.lua'.
 
 -- Create a global table with information about Leader groups in certain modes.
 -- This is used to provide 'mini.clue' with extra clues.
@@ -98,11 +98,22 @@ nmap_leader('bW', '<Cmd>lua MiniBufremove.wipeout(0, true)<CR>', 'Wipeout!')
 -- - `<Leader>ed` - open explorer at current working directory
 -- - `<Leader>ef` - open directory of current file (needs to be present on disk)
 -- - `<Leader>ei` - edit 'init.lua'
--- - All mappings that use `edit_plugin_file` - edit 'plugin/' config files
-local edit_plugin_file = function(filename)
-  return string.format('<Cmd>edit %s/plugin/%s<CR>', vim.fn.stdpath('config'), filename)
+-- - All mappings that use `edit_config_file` - edit config files
+local edit_config_file = function(path)
+  return string.format('<Cmd>edit %s/%s<CR>', vim.fn.stdpath('config'), path)
 end
-local explore_at_file = '<Cmd>lua MiniFiles.open(vim.api.nvim_buf_get_name(0))<CR>'
+-- `MiniFiles` is set up in a `now_if_args()` block (see 'lua/plugins/mini.lua'),
+-- which defers when Neovim is started without a file. Set it up on demand so
+-- `<Leader>ed` / `<Leader>ef` also work from the starter screen. `get_name` is a
+-- function, not a value, because the current buffer can change between the
+-- mapping being defined and the mapping being pressed.
+local open_files = function(get_name)
+  return function()
+    if not MiniFiles then pcall(require('mini.files').setup) end
+    MiniFiles.open(get_name and get_name() or nil)
+  end
+end
+local explore_at_file = open_files(function() return vim.api.nvim_buf_get_name(0) end)
 local explore_quickfix = function()
   vim.cmd(vim.fn.getqflist({ winid = true }).winid ~= 0 and 'cclose' or 'copen')
 end
@@ -110,14 +121,14 @@ local explore_locations = function()
   vim.cmd(vim.fn.getloclist(0, { winid = true }).winid ~= 0 and 'lclose' or 'lopen')
 end
 
-nmap_leader('ed', '<Cmd>lua MiniFiles.open()<CR>',          'Directory')
+nmap_leader('ed', open_files(),                             'Directory')
 nmap_leader('ef', explore_at_file,                          'File directory')
-nmap_leader('ei', '<Cmd>edit $MYVIMRC<CR>',                 'init.lua')
-nmap_leader('ek', edit_plugin_file('20_keymaps.lua'),       'Keymaps config')
-nmap_leader('em', edit_plugin_file('30_mini.lua'),          'MINI config')
+nmap_leader('ei', '<Cmd>edit $MYVIMRC<CR>',                  'init.lua')
+nmap_leader('ek', edit_config_file('plugin/20_keymaps.lua'), 'Keymaps config')
+nmap_leader('em', edit_config_file('lua/plugins/mini.lua'),  'MINI config')
 nmap_leader('en', '<Cmd>lua MiniNotify.show_history()<CR>', 'Notifications')
-nmap_leader('eo', edit_plugin_file('10_options.lua'),       'Options config')
-nmap_leader('ep', edit_plugin_file('40_plugins.lua'),       'Plugins config')
+nmap_leader('eo', edit_config_file('lua/options.lua'),       'Options config')
+nmap_leader('ep', edit_config_file('lua/plugins'),           'Plugins specs')
 nmap_leader('eq', explore_quickfix,                         'Quickfix list')
 nmap_leader('eQ', explore_locations,                        'Location list')
 
@@ -187,7 +198,7 @@ xmap_leader('gs', '<Cmd>lua MiniGit.show_at_cursor()<CR>', 'Show at selection')
 -- LSP mappings (like `:h gra` and others). This is needed because `gr` is mapped
 -- by an "replace" operator in 'mini.operators' (which is more commonly used).
 
--- Rename through 'inc_rename.nvim' (setup in 'plugin/40_plugins.lua'): it
+-- Rename through 'inc-rename.nvim' (setup in 'lua/plugins/editing.lua'): it
 -- previews the rename in the command-preview window as the new name is typed, so
 -- a rename spanning many files can be reviewed before it is applied instead of
 -- being committed blind. `:IncRename` is a no-op when no attached server offers
@@ -286,9 +297,13 @@ local undo_tree = function()
       local n = e.changes or 1
       local changes = (n >= 2) and (' (' .. n .. ' changes)') or ''
       local kind = e.save and 'save' or 'undo'
+      -- `os.date`'s second argument must be a number; be explicit so a `nil` or
+      -- non-numeric time from `undotree()` falls back to 0 (epoch) instead of
+      -- raising "bad argument".
+      local time = tonumber(e.time) or tonumber(und.time_cur) or 0
       table.insert(items, {
         id = e.seq,
-        text = string.format('%s%s %s%s', mark, os.date('%H:%M:%S', e.time or und.time_cur or 0), kind, changes),
+        text = string.format('%s%s %s%s', mark, os.date('%H:%M:%S', time), kind, changes),
       })
     end
   end
@@ -300,7 +315,9 @@ local undo_tree = function()
     source = {
       items = items,
       name = 'Undo history',
-      choose = function(item) vim.cmd('undo ' .. item.id) end,
+      choose = function(item)
+        vim.cmd('undo ' .. item.id)
+      end,
     },
   })
 end
@@ -360,77 +377,138 @@ local toggle = function(get, set, desc)
 end
 
 -- Editing / view toggles
-map('n', '<Leader>uw', toggle(
-  function() return vim.wo.wrap end,
-  function(v) vim.wo.wrap = v end,
-  'Toggle wrap'
-), { desc = 'Toggle wrap' })
-map('n', '<Leader>us', toggle(
-  function() return vim.wo.spell end,
-  function(v) vim.wo.spell = v end,
-  'Toggle spell'
-), { desc = 'Toggle spelling' })
+map(
+  'n',
+  '<Leader>uw',
+  toggle(function()
+    return vim.wo.wrap
+  end, function(v)
+    vim.wo.wrap = v
+  end, 'Toggle wrap'),
+  { desc = 'Toggle wrap' }
+)
+map(
+  'n',
+  '<Leader>us',
+  toggle(function()
+    return vim.wo.spell
+  end, function(v)
+    vim.wo.spell = v
+  end, 'Toggle spell'),
+  { desc = 'Toggle spelling' }
+)
 
 -- `relativenumber` is on with `number`, which is how MiniMax (and LazyVim) show
 -- line numbers; `ul` turns the pair off entirely, `uL` flips which one is the
 -- "absolute" one. Keep `number` implied by `relativenumber` the same way round.
-map('n', '<Leader>uL', toggle(
-  function() return vim.wo.relativenumber end,
-  function(v) vim.wo.relativenumber = v end,
-  'Toggle relative number'
-), { desc = 'Toggle relative number' })
-map('n', '<Leader>ul', toggle(
-  function() return vim.o.number and vim.o.relativenumber end,
-  function(v) vim.o.number = v; vim.o.relativenumber = v end,
-  'Toggle line numbers'
-), { desc = 'Toggle line numbers' })
+map(
+  'n',
+  '<Leader>uL',
+  toggle(function()
+    return vim.wo.relativenumber
+  end, function(v)
+    vim.wo.relativenumber = v
+  end, 'Toggle relative number'),
+  { desc = 'Toggle relative number' }
+)
+map(
+  'n',
+  '<Leader>ul',
+  toggle(function()
+    return vim.o.number and vim.o.relativenumber
+  end, function(v)
+    vim.o.number = v
+    vim.o.relativenumber = v
+  end, 'Toggle line numbers'),
+  { desc = 'Toggle line numbers' }
+)
 
 -- Diagnostics are on by default (see the 'vim.diagnostic.config' above); turn
 -- the whole subsystem off for a quiet look at the code.
-map('n', '<Leader>ud', toggle(
-  function() return not vim.diagnostic.is_enabled() end,
-  function(v) vim.diagnostic.enable(v) end,
-  'Toggle diagnostics'
-), { desc = 'Toggle diagnostics' })
+map(
+  'n',
+  '<Leader>ud',
+  toggle(function()
+    return not vim.diagnostic.is_enabled()
+  end, function(v)
+    vim.diagnostic.enable(v)
+  end, 'Toggle diagnostics'),
+  { desc = 'Toggle diagnostics' }
+)
 
 -- Conceal hides Markdown/Wiki link targets and similar markup by default; raise
 -- the level to reveal the raw text.
-map('n', '<Leader>uc', toggle(
-  function() return vim.wo.conceallevel == 0 end,
-  function(v) vim.wo.conceallevel = v and 2 or 0 end,
-  'Toggle conceal'
-), { desc = 'Toggle conceal level' })
+map(
+  'n',
+  '<Leader>uc',
+  toggle(function()
+    return vim.wo.conceallevel == 0
+  end, function(v)
+    vim.wo.conceallevel = v and 2 or 0
+  end, 'Toggle conceal'),
+  { desc = 'Toggle conceal level' }
+)
 
 -- Tree-sitter highlighting toggle. Stopping the highlighter leaves the parser
 -- in place (so textobjects keep working) but removes the syntax colours, which
 -- is the quickest way to judge a file's structure vs. its styling.
-map('n', '<Leader>uT', toggle(
-  function() return vim.treesitter.highlighter.active[vim.api.nvim_get_current_buf()] == nil end,
-  function(off)
+map(
+  'n',
+  '<Leader>uT',
+  toggle(function()
+    -- `vim.treesitter.highlighter` is not a table on all Neovim versions, so
+    -- read it through `pcall` and treat "cannot tell" as "off" rather than
+    -- throwing from the mapping.
+    local ok, active = pcall(function()
+      return vim.treesitter.highlighter.active[vim.api.nvim_get_current_buf()] == nil
+    end)
+    return ok and active or true
+  end, function(off)
     local buf = vim.api.nvim_get_current_buf()
     if off then
       pcall(vim.treesitter.highlighter.stop, buf)
     else
       pcall(vim.treesitter.start, buf)
     end
-  end,
-  'Toggle treesitter highlight'
-), { desc = 'Toggle Treesitter highlight' })
+  end, 'Toggle treesitter highlight'),
+  { desc = 'Toggle Treesitter highlight' }
+)
 
 -- Light / dark. `background` is an option Vim applies to colorschemes that
 -- respect it, so setting it is the portable half of a dark/light switch.
-map('n', '<Leader>ub', toggle(
-  function() return vim.o.background == 'dark' end,
-  function(v) vim.o.background = v and 'dark' or 'light' end,
-  'Toggle dark background'
-), { desc = 'Toggle dark background' })
+map(
+  'n',
+  '<Leader>ub',
+  toggle(function()
+    return vim.o.background == 'dark'
+  end, function(v)
+    vim.o.background = v and 'dark' or 'light'
+  end, 'Toggle dark background'),
+  { desc = 'Toggle dark background' }
+)
 
 -- Zoom (`uZ`) is 'mini.misc' zoom: one window fills the screen, so a file can be
 -- read without the splits on either side. `uz` is the fuller zen treatment the
 -- keymaps section already uses for `<A-z>`.
-map('n', '<Leader>uZ', function()
+--
+-- The `MiniMisc`/`MiniFiles` globals only exist once the module has been set up.
+-- `lua/plugins/mini.lua` sets both up in `now_if_args()` blocks, which defer when
+-- Neovim is started without a file, so on the starter screen these are not yet
+-- there. `require(...).setup` is the same trick `toggle_mini_files` uses below.
+local zoom = function()
+  if not MiniMisc then
+    pcall(require('mini.misc').setup)
+  end
+  -- `pcall` above can still leave `MiniMisc` unset if the module is not loaded
+  -- yet (it is set up in a `now_if_args()` block, which defers on the starter
+  -- screen); calling into it then throws instead of doing nothing.
+  if not MiniMisc then
+    vim.notify('mini.misc is not loaded yet, try again in a moment', vim.log.levels.WARN)
+    return
+  end
   MiniMisc.zoom()
-end, { desc = 'Toggle zoom' })
+end
+map('n', '<Leader>uZ', zoom, { desc = 'Toggle zoom' })
 map('n', '<Leader>uz', function()
   -- Reuse the `<A-z>` zen body so the two entry points cannot drift.
   local keys = vim.api.nvim_get_keymap('n')
@@ -438,7 +516,7 @@ map('n', '<Leader>uz', function()
   if zen and zen.callback then
     return zen.callback()
   end
-  MiniMisc.zoom()
+  zoom()
 end, { desc = 'Toggle zen mode' })
 
 -- Not in LazyVim's group, but it belongs here and was already half-mapped: clear
@@ -464,13 +542,17 @@ map('n', '<C-y>', '<cmd>redo<CR>', { desc = 'Redo' })
 
 -- LazyVim-parity additions ------------------------------------------------
 map('n', '<Leader>qq', '<Cmd>qa<CR>', { desc = 'Quit all' })
-map('n', '<Leader>nh', function() vim.cmd('nohlsearch') end, { desc = 'Clear search highlight' })
+map('n', '<Leader>nh', function()
+  vim.cmd('nohlsearch')
+end, { desc = 'Clear search highlight' })
 map('n', '<Leader>ur', function()
   vim.cmd('nohlsearch')
   vim.cmd('redraw!')
 end, { desc = 'Redraw / clear search highlight' })
-map('n', '<Leader>fn', function() vim.cmd('enew') end, { desc = 'New file' })
--- Toggle auto-format on save (see conform `format_on_save` in '40_plugins.lua').
+map('n', '<Leader>fn', function()
+  vim.cmd('enew')
+end, { desc = 'New file' })
+-- Toggle auto-format on save (see conform `format_on_save` in 'lua/plugins/editing.lua').
 -- LazyVim puts the *global* switch on the lowercase key and the *buffer* switch
 -- on the uppercase one (`uf` global, `uF` buffer); this config had them the
 -- other way round, so both are corrected here to match.
@@ -494,7 +576,9 @@ end, { desc = 'Toggle autoformat (buffer)' })
 map('n', '<C-;>', ':')
 
 -- LSP actions
-map({ 'n', 'i' }, '<A-\\>', function() vim.lsp.buf.code_action() end)
+map({ 'n', 'i' }, '<A-\\>', function()
+  vim.lsp.buf.code_action()
+end)
 
 -- Rename is defined once in the `<Leader>l` section above (`inc_rename`) and
 -- reused here, so `<Leader>lr`, `<A-r>` and `grn` can never disagree about how
@@ -503,8 +587,19 @@ map({ 'n', 'i', 'v' }, '<A-r>', inc_rename, { desc = 'Rename (preview)' })
 map('n', 'grn', inc_rename, { desc = 'Rename (preview)' })
 
 -- Find & replace (was 'grug-far' in the previous config)
+--
+-- 'grug-far.nvim' loads on `VeryLazy`, which is a *queued* `vim.schedule` (see
+-- 'lazy.nvim''s `M.very_lazy()`), so it is not guaranteed to have run when this
+-- mapping is pressed -- `nvim file.lua` followed immediately by `<A-f>` hits
+-- that gap. `require()` is therefore guarded and the failure is reported rather
+-- than silently swallowed by a bare `pcall`, which is what made the mapping look
+-- like a no-op instead of an error.
 map({ 'n', 'i' }, '<A-f>', function()
-  local grug = require('grug-far')
+  local ok, grug = pcall(require, 'grug-far')
+  if not ok then
+    vim.notify('grug-far is not loaded yet, try again in a moment', vim.log.levels.WARN)
+    return
+  end
   local name = 'grug'
   if grug.has_instance(name) then
     grug.hide_instance(name)
@@ -522,12 +617,16 @@ end)
 -- File explorer (mini.files) toggle
 local toggle_mini_files = function()
   -- Ensure 'mini.files' is set up even if its setup is deferred by `later()`
-  if not MiniFiles then pcall(require('mini.files').setup) end
+  if not MiniFiles then
+    pcall(require('mini.files').setup)
+  end
   -- Fall back to the working directory for buffers without a real on-disk path
   local name = vim.api.nvim_buf_get_name(0)
   local path = (name ~= '' and vim.fn.filereadable(name) == 1) and name or vim.uv.cwd()
   pcall(function()
-    if not MiniFiles.close() then MiniFiles.open(path, false) end
+    if not MiniFiles.close() then
+      MiniFiles.open(path, false)
+    end
   end)
 end
 map({ 'n', 'i', 'v', 't', 'x', 'o' }, '<A-e>', toggle_mini_files)
@@ -560,15 +659,12 @@ map({ 'n', 'i' }, '<C-q>', function()
   end
 end)
 
--- Dimming (tint.nvim) is the one `<Leader>u` toggle that needs a plugin; it has
--- no external dependencies. `<Leader>uD` matches LazyVim's "Toggle Dimming":
--- the unfocused split is desaturated and darkened so the window you are
--- actually editing is the bright one.
-map('n', '<Leader>uD', function()
-  require('tint').toggle()
-end, { desc = 'Toggle dimming' })
-
 -- Floating terminals (was 'Snacks.terminal.toggle')
+--
+-- `termwin` is shared by every float, but the window is captured per launch as
+-- `mywin`. Without that, closing a float by hand while its job still runs leaves
+-- the job's `on_exit` pointing at whatever window `termwin` holds *then*, so it
+-- would close an unrelated terminal that was opened in the meantime.
 local termwin
 local float_term = function(cmd)
   return function()
@@ -581,7 +677,7 @@ local float_term = function(cmd)
     local width, height = math.floor(vim.o.columns * 0.85), math.floor(vim.o.lines * 0.85)
     local row = math.floor((vim.o.lines - height) / 2)
     local col = math.floor((vim.o.columns - width) / 2)
-    termwin = vim.api.nvim_open_win(buf, true, {
+    local mywin = vim.api.nvim_open_win(buf, true, {
       relative = 'editor',
       row = row,
       col = col,
@@ -590,12 +686,19 @@ local float_term = function(cmd)
       style = 'minimal',
       border = 'rounded',
     })
+    termwin = mywin
     vim.bo[buf].buflisted = false
     vim.keymap.set('t', '<ESC>', '<C-\\><C-n>', { buffer = buf })
     vim.fn.termopen(cmd, {
       on_exit = function()
-        pcall(vim.api.nvim_win_close, termwin, true)
-        termwin = nil
+        -- Close only the window this job was started in, and only if it is still
+        -- the one `termwin` refers to (otherwise a replacement float is open).
+        if termwin == mywin then
+          termwin = nil
+        end
+        if vim.api.nvim_win_is_valid(mywin) then
+          pcall(vim.api.nvim_win_close, mywin, true)
+        end
       end,
     })
     vim.cmd('startinsert')
@@ -625,14 +728,18 @@ map({ 'n', 'i' }, '<A-z>', function()
   vim.o.signcolumn = zen_on and 'no' or 'yes'
   vim.o.scrolloff = zen_on and 0 or 30
 end)
-map({ 'n', 'i' }, '<A-Z>', function() MiniStarter.open() end)
+map({ 'n', 'i' }, '<A-Z>', function()
+  MiniStarter.open()
+end)
 map({ 'n', 'i' }, '<A-,>', function()
   vim.api.nvim_win_set_buf(0, vim.api.nvim_create_buf(true, true))
 end)
 
 -- Theme toggles (were 'Snacks' dark/light switching)
 local notify_theme = function(msg, icon)
-  pcall(function() require('mini.notify').notify(msg, 'INFO', { title = '', icon = icon }) end)
+  pcall(function()
+    require('mini.notify').notify(msg, 'INFO', { title = '', icon = icon })
+  end)
 end
 map({ 'i', 'n', 'v', 'x', 'o', 't' }, '<M- >', '') -- Disable Alt+Space
 map({ 'i', 'n', 'v', 'x', 'o', 't' }, '<A-->', function()
@@ -651,11 +758,18 @@ map({ 'n', 'i' }, '<C-9>', '<Cmd>lua MiniSessions.restart()<CR>') -- was ':resta
 map({ 'n', 'i' }, '<A-1>', '<cmd>Nerdy<cr>')
 map({ 'n', 'i' }, '<A-2>', '<cmd>Emoji<cr>') -- emoji picker
 
+-- Plugin manager. `<Leader>l` is already the Language group, so this goes on the
+-- Alt palette instead; `:Lazy` is provided by 'lazy.nvim' itself, which is
+-- always loaded, so a plain mapping is enough (no `keys` trigger in the spec).
+map({ 'n', 'i' }, '<A-l>', '<Cmd>Lazy<CR>', { desc = 'Lazy (plugin manager)' })
+
 -- Picker palette (were 'Snacks.picker' mappings) =============================
 -- Re-targeted at MiniMax's `:Pick` commands and 'mini.extra' pickers.
 local extra_pick = function(name, opts)
   return function()
-    local ok, err = pcall(function() require('mini.extra').pickers[name](opts or {}) end)
+    local ok, err = pcall(function()
+      require('mini.extra').pickers[name](opts or {})
+    end)
     if not ok then
       vim.notify(
         'mini.extra picker unavailable: ' .. name .. ' — ' .. tostring(err):match('[^\n]+'),
@@ -665,26 +779,44 @@ local extra_pick = function(name, opts)
   end
 end
 
-map({ 'n', 'i' }, '<A-X>', function() vim.cmd('Pick diagnostic scope="all"') end) -- diagnostics
-map({ 'n', 'i' }, '<A-x>', function() vim.cmd('Pick diagnostic scope="current"') end) -- buffer diagnostics
+map({ 'n', 'i' }, '<A-X>', function()
+  vim.cmd('Pick diagnostic scope="all"')
+end) -- diagnostics
+map({ 'n', 'i' }, '<A-x>', function()
+  vim.cmd('Pick diagnostic scope="current"')
+end) -- buffer diagnostics
 map({ 'n', 'i' }, '<A-c>', extra_pick('commands')) -- commands
-map({ 'n', 'i' }, "<A-'>", function() vim.cmd('Pick grep pattern="<cword>"') end) -- smart
+map({ 'n', 'i' }, "<A-'>", function()
+  vim.cmd('Pick grep pattern="<cword>"')
+end) -- smart
 map({ 'n', 'i' }, '<A-u>', undo_tree) -- undo tree
-map({ 'n', 'i' }, '<A-s>', function() vim.cmd('Pick lsp scope="document_symbol"') end) -- lsp_symbols
-map({ 'n', 'i' }, '<A-S>', function() vim.cmd('Pick lsp scope="workspace_symbol_live"') end) -- lsp_workspace_symbols
-map({ 'n', 'i' }, '<A-y>', function() vim.cmd('YankyRingHistory') end) -- yank history
+map({ 'n', 'i' }, '<A-s>', function()
+  vim.cmd('Pick lsp scope="document_symbol"')
+end) -- lsp_symbols
+map({ 'n', 'i' }, '<A-S>', function()
+  vim.cmd('Pick lsp scope="workspace_symbol_live"')
+end) -- lsp_workspace_symbols
+map({ 'n', 'i' }, '<A-y>', function()
+  vim.cmd('YankyRingHistory')
+end) -- yank history
 -- yanky ring cycling (Normal mode only so 'mini.completion' keeps <C-p>/<C-n>)
 map('n', '<C-p>', '<Plug>(YankyCycleForward)')
 map('n', '<C-n>', '<Plug>(YankyCycleBackward)')
-map({ 'n', 'i' }, '<A-h>', function() vim.cmd('Pick help') end) -- help
+map({ 'n', 'i' }, '<A-h>', function()
+  vim.cmd('Pick help')
+end) -- help
 map({ 'n', 'i' }, '<A-m>', extra_pick('manpages')) -- man
 -- Workspace projects (was 'Snacks.picker.projects'); choosing one sets cwd
 map({ 'n', 'i' }, '<A-w>', function()
   local root = vim.fn.expand('~/workspace')
-  if vim.fn.isdirectory(root) == 0 then root = vim.uv.cwd() end
+  if vim.fn.isdirectory(root) == 0 then
+    root = vim.uv.cwd()
+  end
   local items = {}
   for _, dir in ipairs(vim.fn.glob(root .. '/*', false, true)) do
-    if vim.fn.isdirectory(dir) == 1 then table.insert(items, dir) end
+    if vim.fn.isdirectory(dir) == 1 then
+      table.insert(items, dir)
+    end
   end
   table.sort(items)
   require('mini.pick').start({
@@ -693,12 +825,16 @@ map({ 'n', 'i' }, '<A-w>', function()
       name = 'Workspace',
       choose = function(item)
         vim.fn.chdir(item)
-        pcall(function() require('mini.notify').notify('Workspace: ' .. item, 'INFO') end)
+        pcall(function()
+          require('mini.notify').notify('Workspace: ' .. item, 'INFO')
+        end)
       end,
     },
   })
 end)
-map({ 'n', 'i' }, '<A-;>', function() vim.cmd('Pick buf_lines scope="all"') end) -- lines
+map({ 'n', 'i' }, '<A-;>', function()
+  vim.cmd('Pick buf_lines scope="all"')
+end) -- lines
 map({ 'n', 'i' }, '<A-:>', function() -- git log
   local items = vim.fn.systemlist('git log --oneline -100')
   if vim.v.shell_error ~= 0 then
@@ -720,7 +856,9 @@ map({ 'n', 'i' }, '<A-:>', function() -- git log
     },
   })
 end)
-map({ 'n', 'i' }, '<A-H>', function() vim.cmd('Pick history scope=":"') end) -- command history
+map({ 'n', 'i' }, '<A-H>', function()
+  vim.cmd('Pick history scope=":"')
+end) -- command history
 map({ 'n', 'i' }, '<A-j>', function() -- jumps
   local jl = vim.fn.getjumplist()
   local items = {}
@@ -750,18 +888,19 @@ map({ 'n', 'i' }, '<A-j>', function() -- jumps
     },
   })
 end)
-map({ 'n', 'i' }, '<A-b>', function() vim.cmd('Pick buffers') end) -- buffers
+map({ 'n', 'i' }, '<A-b>', function()
+  vim.cmd('Pick buffers')
+end) -- buffers
 map({ 'n', 'i' }, '<A-q>', extra_pick('marks')) -- marks
 map({ 'n', 'i' }, '<A-C>', extra_pick('colorschemes')) -- colorschemes
-map({ 'n', 'i' }, '<A-R>', function() vim.lsp.buf.references() end) -- lsp_references
+map({ 'n', 'i' }, '<A-R>', function()
+  vim.lsp.buf.references()
+end) -- lsp_references
 
 -- Config-file editing (was <Leader>ti/tk/tm/to/tp/ta in the previous config)
-local cfg_file = function(filename)
-  return string.format('<Cmd>edit %s/%s<CR>', vim.fn.stdpath('config'), filename)
-end
-nmap_leader('ti', cfg_file('init.lua'),              'init.lua')
-nmap_leader('tk', cfg_file('plugin/20_keymaps.lua'), 'Keymaps')
-nmap_leader('to', cfg_file('plugin/10_options.lua'), 'Options')
-nmap_leader('tm', cfg_file('plugin/30_mini.lua'),    'MINI config')
-nmap_leader('tp', cfg_file('plugin/40_plugins.lua'), 'Plugins')
-nmap_leader('ta', cfg_file('plugin/10_options.lua'), 'Autocmds')
+nmap_leader('ti', edit_config_file('init.lua'), 'init.lua')
+nmap_leader('tk', edit_config_file('plugin/20_keymaps.lua'), 'Keymaps')
+nmap_leader('to', edit_config_file('lua/options.lua'), 'Options')
+nmap_leader('tm', edit_config_file('lua/plugins/mini.lua'), 'MINI config')
+nmap_leader('tp', edit_config_file('lua/plugins'), 'Plugins specs')
+nmap_leader('ta', edit_config_file('lua/options.lua'), 'Autocmds')
