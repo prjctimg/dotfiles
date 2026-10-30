@@ -259,16 +259,15 @@ end
 
 -- WGSL validation ============================================================
 
--- There is no `wgsl_analyzer` binary installed (see `vim.lsp.enable()` in
--- 'lua/plugins/lsp.lua' for how to add it), so WGSL files get no real language
--- server. `naga` (the Rust shader translator, `cargo install naga-cli`) parses
--- and validates a shader when given no output file, which is enough to surface
--- type and binding errors as ordinary diagnostics.
+-- `wgsl_analyzer` is the primary language server for WGSL (see
+-- `vim.lsp.enable()` in 'lua/plugins/lsp.lua'). When it is not installed or not
+-- attached, fall back to `naga` (the Rust shader translator, `cargo install
+-- naga-cli`), which parses and validates a shader when given no output file and
+-- surfaces type and binding errors as ordinary diagnostics.
 --
 -- This runs on write, not on CursorHold: validation is a whole-file parse, so
--- per-keystroke checking would be wasteful. Once `wgsl_analyzer` is installed it
--- takes over and these diagnostics stop appearing -- the server reports the same
--- class of problem.
+-- per-keystroke checking would be wasteful. `wgsl_analyzer` validates live, so
+-- the fallback is skipped whenever that client is attached to the buffer.
 if vim.fn.executable('naga') == 1 then
   -- `set()` takes a namespace *name* but `reset()` wants the numeric namespace,
   -- so resolve it once and use the number everywhere.
@@ -325,11 +324,16 @@ if vim.fn.executable('naga') == 1 then
   end
 
   Config.new_autocmd({ 'BufWritePost' }, { '*.wgsl' }, function(ev)
+    -- `wgsl_analyzer` already reports these live; don't duplicate them.
+    if #vim.lsp.get_clients({ bufnr = ev.buf, name = 'wgsl_analyzer' }) > 0 then
+      return
+    end
+
     -- Validate asynchronously so a slow parse never blocks the write.
     vim.schedule(function()
       naga_check(ev.buf)
     end)
-  end, 'Validate WGSL with naga')
+  end, 'Validate WGSL with naga when wgsl-analyzer is detached')
 end
 
 vim.api.nvim_create_autocmd('CursorHold', {

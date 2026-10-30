@@ -167,9 +167,13 @@ end
 
 -- 'mdx' (Markdown + JSX) gets its own filetype and is parsed with the 'markdown'
 -- tree-sitter parser (registered in 'lua/plugins/treesitter.lua'), so
--- render-markdown works in '*.mdx' files too. This has to happen before any
--- buffer gets a FileType, i.e. it cannot live in a lazy spec.
-vim.filetype.add({ extension = { mdx = 'mdx' } })
+-- render-markdown works in '*.mdx' files too. Grayscale uses two extensions but
+-- a single filetype, so the parser, LSP, formatter and ftplugin all key off
+-- 'gray'. This has to happen before any buffer gets a FileType, i.e. it cannot
+-- live in a lazy spec.
+vim.filetype.add({
+  extension = { mdx = 'mdx', gray = 'gray', grayscale = 'gray' },
+})
 
 -- Built-in Neovim behavior. See 'lua/options.lua'.
 require('options')

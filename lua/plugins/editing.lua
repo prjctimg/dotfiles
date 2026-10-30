@@ -78,6 +78,21 @@ return {
           end
           return { timeout_ms = 500, lsp_format = 'fallback' }
         end,
+        -- Custom formatters ======================================================
+        formatters = {
+          -- `gray fmt` normalizes a path in place and has no stdin mode. With
+          -- `stdin = false`, conform passes a temporary copy through `$FILENAME`;
+          -- the temp name still ends in the original `.gray`/`.grayscale` suffix,
+          -- which is what the formatter expects.
+          --
+          -- Note: `gray fmt` runs the compiler first and exits non-zero on invalid
+          -- code, so conform reports an error if a buffer fails `gray check`.
+          gray_fmt = {
+            command = 'gray',
+            args = { 'fmt', '$FILENAME' },
+            stdin = false,
+          },
+        },
         -- Map of filetype to formatters
         -- Make sure that necessary CLI tool is available
         formatters_by_ft = {
@@ -90,6 +105,7 @@ return {
           sh = { 'shfmt' },
           bash = { 'shfmt' },
           fish = { 'fish_indent' },
+          gray = { 'gray_fmt' },
           -- `wgsl`, `nix`, `python`, `css` and `html` have no formatter binary
           -- installed, so they are deliberately NOT listed here: a missing entry
           -- makes conform report "no formatters available" on every save. They

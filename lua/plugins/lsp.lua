@@ -25,6 +25,33 @@ return {
     -- itself rather than a later startup event.
     event = { 'BufReadPre', 'BufNewFile' },
     config = function()
+      -- Grayscale ('gray') ======================================================
+      --
+      -- GrayLS is not in nvim-lspconfig's registry, so use the native
+      -- `vim.lsp.config()` API here. The server is extracted from the VS Code
+      -- extension into '~/.local/share/grayls/server.js'; set `vim.g.grayls_server`
+      -- to point somewhere else.
+      --
+      -- Advertised capabilities (probed from Neovim): completion (triggers `.`
+      -- and `@`), hover, go-to-definition, and push diagnostics through
+      -- `gray check`. It has no formatting, rename, references, code actions,
+      -- symbols, semantic tokens, or folding. Formatting therefore comes from
+      -- conform (`gray fmt`), while folds/indentation come from tree-sitter.
+      --
+      -- `gray` must be on PATH for diagnostics; all other features work without it.
+      local grayls_server = vim.g.grayls_server
+        or vim.fs.joinpath(vim.fn.expand('~/.local/share'), 'grayls', 'server.js')
+      if vim.fn.executable('node') == 1 and vim.uv.fs_stat(grayls_server) then
+        vim.lsp.config('grayls', {
+          cmd = { 'node', grayls_server, '--stdio' },
+          filetypes = { 'gray' },
+          root_markers = { 'gray.toml', '.git' },
+          -- `workspace_required` defaults to false, so GrayLS also attaches to
+          -- single files outside a project.
+        })
+        vim.lsp.enable('grayls')
+      end
+
       -- Use `:h vim.lsp.enable()` to automatically enable language server based on
       -- the rules provided by 'nvim-lspconfig'.
       -- Use `:h vim.lsp.config()` or 'after/lsp/' directory to configure servers.
@@ -41,7 +68,8 @@ return {
         -- lazily, so a server with no binary installed is simply skipped instead of
         -- erroring on startup. Install the binary and the server attaches with no
         -- further config change:
-        --   wgsl_analyzer  -- cargo install wgsl_analyzer   (WGSL)
+        --   wgsl_analyzer  -- release binary from wgsl-analyzer/wgsl-analyzer
+        --                     (or: cargo install --git ... wgsl-analyzer)  (WGSL)
         --   basedpyright  -- pipx/uv/npm  (Python; also provides py.venv handling)
         --   nixd           -- nix profile install nixd     (Nix)
         --   cssls / html  -- npm i -g vscode-langservers-extracted
