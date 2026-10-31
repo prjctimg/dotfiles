@@ -28,22 +28,40 @@ return {
       -- Grayscale ('gray') ======================================================
       --
       -- GrayLS is not in nvim-lspconfig's registry, so use the native
-      -- `vim.lsp.config()` API here. The server is extracted from the VS Code
-      -- extension into '~/.local/share/grayls/server.js'; set `vim.g.grayls_server`
-      -- to point somewhere else.
+      -- `vim.lsp.config()` API here. The fork lives in '~/.local/share/grayls':
+      -- prefer the `scriptc`-compiled `grayls` binary, and fall back to the
+      -- Node build (`server.js`). Set `vim.g.grayls_bin` or
+      -- `vim.g.grayls_server` to point somewhere else; setting
+      -- `vim.g.grayls_server` forces the Node build (useful for debugging).
       --
       -- Advertised capabilities (probed from Neovim): completion (triggers `.`
-      -- and `@`), hover, go-to-definition, and push diagnostics through
-      -- `gray check`. It has no formatting, rename, references, code actions,
-      -- symbols, semantic tokens, or folding. Formatting therefore comes from
-      -- conform (`gray fmt`), while folds/indentation come from tree-sitter.
+      -- and `@`), hover, go-to-definition, document symbols, references,
+      -- prepare-rename/rename, document formatting, and push diagnostics
+      -- through `gray check`. It has no code actions, semantic tokens, or
+      -- folding; folds/indentation come from tree-sitter. Formatting runs
+      -- `gray fmt` inside GrayLS, and conform reaches it through its LSP
+      -- fallback, so `.gray` uses the same formatter as the CLI.
       --
-      -- `gray` must be on PATH for diagnostics; all other features work without it.
-      local grayls_server = vim.g.grayls_server
-        or vim.fs.joinpath(vim.fn.expand('~/.local/share'), 'grayls', 'server.js')
-      if vim.fn.executable('node') == 1 and vim.uv.fs_stat(grayls_server) then
+      -- `gray` must be on PATH for diagnostics and formatting; the other
+      -- features work without it.
+      local grayls_dir = vim.fs.joinpath(vim.fn.expand('~/.local/share'), 'grayls')
+      local grayls_bin = vim.g.grayls_bin or vim.fs.joinpath(grayls_dir, 'grayls')
+      local grayls_server = vim.g.grayls_server or vim.fs.joinpath(grayls_dir, 'server.js')
+
+      local grayls_cmd
+      if vim.g.grayls_server then
+        if vim.fn.executable('node') == 1 and vim.uv.fs_stat(grayls_server) then
+          grayls_cmd = { 'node', grayls_server, '--stdio' }
+        end
+      elseif vim.fn.executable(grayls_bin) == 1 then
+        grayls_cmd = { grayls_bin, '--stdio' }
+      elseif vim.fn.executable('node') == 1 and vim.uv.fs_stat(grayls_server) then
+        grayls_cmd = { 'node', grayls_server, '--stdio' }
+      end
+
+      if grayls_cmd then
         vim.lsp.config('grayls', {
-          cmd = { 'node', grayls_server, '--stdio' },
+          cmd = grayls_cmd,
           filetypes = { 'gray' },
           root_markers = { 'gray.toml', '.git' },
           -- `workspace_required` defaults to false, so GrayLS also attaches to
