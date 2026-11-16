@@ -244,8 +244,9 @@ local function first_client_with_method(bufnr, method)
 end
 
 local function make_params(client)
+  local encoding = (client and client.offset_encoding) or 'utf-16'
   if vim.lsp.util and vim.lsp.util.make_position_params then
-    local ok, params = pcall(vim.lsp.util.make_position_params, 0, client and client.offset_encoding or 'utf-16')
+    local ok, params = pcall(vim.lsp.util.make_position_params, 0, encoding)
     if ok and params then
       return params
     end
@@ -255,6 +256,22 @@ local function make_params(client)
     textDocument = { uri = vim.uri_from_bufnr(0) },
     position = { line = pos[1] - 1, character = pos[2] },
   }
+end
+
+local function request(client, method, params, bufnr, handler)
+  if not client then
+    return
+  end
+  local ok = pcall(function()
+    -- Neovim 0.11+ method form: client:request(method, params, handler, bufnr)
+    return client:request(method, params, handler, bufnr)
+  end)
+  if ok then
+    return
+  end
+  pcall(function()
+    client.request(method, params, handler, bufnr)
+  end)
 end
 
 local show_signature_or_hover = function()
@@ -278,7 +295,7 @@ local show_signature_or_hover = function()
       return
     end
     local params = make_params(hover_client)
-    hover_client.request('textDocument/hover', params, function(err, result)
+    request(hover_client, 'textDocument/hover', params, bufnr, function(err, result)
       if err or not result or not result.contents then
         vim.schedule(function() show_diagnostics(diags) end)
         return
@@ -292,12 +309,12 @@ local show_signature_or_hover = function()
           show_diagnostics(diags)
         end
       end)
-    end, bufnr)
+    end)
   end
 
   if sig_client then
     local params = make_params(sig_client)
-    sig_client.request('textDocument/signatureHelp', params, function(err, result)
+    request(sig_client, 'textDocument/signatureHelp', params, bufnr, function(err, result)
       if err or not result or not result.signatures or vim.tbl_isempty(result.signatures) then
         vim.schedule(try_hover)
         return
@@ -311,7 +328,7 @@ local show_signature_or_hover = function()
       else
         vim.schedule(try_hover)
       end
-    end, bufnr)
+    end)
   else
     try_hover()
   end
