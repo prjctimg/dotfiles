@@ -200,23 +200,64 @@ xmap_leader('gs', '<Cmd>lua MiniGit.show_at_cursor()<CR>', 'Show at selection')
 -- LSP mappings (like `:h gra` and others). This is needed because `gr` is mapped
 -- by an "replace" operator in 'mini.operators' (which is more commonly used).
 
--- Rename through 'inc-rename.nvim' (setup in 'lua/plugins/editing.lua'): it
--- previews the rename in the command-preview window as the new name is typed, so
--- a rename spanning many files can be reviewed before it is applied instead of
--- being committed blind. `:IncRename` is a no-op when no attached server offers
--- `textDocument/rename`, so fall back to the plain LSP rename in that case --
--- that keeps the key useful for servers that implement `rename` without
--- `prepareRename`, and avoids a dead key where there is no server at all.
-local inc_rename = function()
-  for _, client in ipairs(vim.lsp.get_clients({ bufnr = 0 })) do
-    if client:supports_method('textDocument/rename') then
-      local keys = ':IncRename ' .. vim.fn.expand('<cword>')
-      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(keys, true, false, true), 'n', false)
-      return
-    end
+-- Floating rename prompt for symbol under cursor.
+local floating_rename = function()
+  local clients = vim.lsp.get_clients({ bufnr = 0, method = 'textDocument/rename' })
+  if #clients == 0 then
+    vim.notify('No LSP client with rename support attached', vim.log.levels.WARN)
+    return
   end
-  vim.lsp.buf.rename()
+  local cword = vim.fn.expand('<cword>')
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { cword })
+  vim.bo[buf].buftype = 'nofile'
+  vim.bo[buf].bufhidden = 'wipe'
+  vim.bo[buf].modifiable = true
+  vim.bo[buf].filetype = 'prompt'
+
+  local width = math.max(20, math.min(60, #cword + 14))
+  local win = vim.api.nvim_open_win(buf, true, {
+    relative = 'cursor',
+    row = 1,
+    col = 0,
+    width = width,
+    height = 1,
+    style = 'minimal',
+    border = 'rounded',
+    title = ' 󰑕 Rename ',
+    title_pos = 'center',
+  })
+  vim.wo[win].winhighlight = 'Normal:NormalFloat,FloatBorder:FloatBorder'
+  vim.wo[win].wrap = false
+  vim.wo[win].cursorline = false
+
+  local closed = false
+  local function close(cancel)
+    if closed then return end
+    closed = true
+    if vim.api.nvim_win_is_valid(win) then pcall(vim.api.nvim_win_close, win, true) end
+    if vim.api.nvim_buf_is_valid(buf) then pcall(vim.api.nvim_buf_delete, buf, { force = true }) end
+    if cancel then vim.cmd('stopinsert') end
+  end
+
+  local function submit()
+    if not vim.api.nvim_buf_is_valid(buf) then return end
+    local new_name = (vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1] or ''):gsub('^%s+', ''):gsub('%s+$', '')
+    close(false)
+    vim.cmd('stopinsert')
+    if new_name == '' or new_name == cword then return end
+    vim.schedule(function()
+      vim.lsp.buf.rename(new_name)
+    end)
+  end
+
+  vim.keymap.set({ 'n', 'i' }, '<CR>', submit, { buffer = buf, nowait = true, silent = true })
+  vim.keymap.set({ 'n', 'i' }, '<Esc>', function() close(true) end, { buffer = buf, nowait = true, silent = true })
+  vim.keymap.set('n', 'q', function() close(true) end, { buffer = buf, nowait = true, silent = true })
+  vim.cmd('startinsert!')
 end
+
+local inc_rename = floating_rename
 
 nmap_leader('la', '<Cmd>lua vim.lsp.buf.code_action()<CR>',     'Actions')
 nmap_leader('ld', '<Cmd>lua vim.diagnostic.open_float()<CR>',   'Diagnostic popup')
@@ -607,6 +648,7 @@ end, { desc = 'Toggle inlay hints (global)' })
 
 -- Enter Command-line mode (was Normal mode in the previous config)
 map('n', '<C-;>', ':')
+map({ 'n', 'x' }, ';', ':', { desc = 'Command line' })
 
 -- LSP actions
 map({ 'n', 'i' }, '<A-\\>', function()

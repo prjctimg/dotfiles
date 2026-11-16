@@ -44,19 +44,59 @@ local aug = vim.api.nvim_create_augroup('md-float-preview-' .. src_buf, { clear 
 local ns = vim.api.nvim_create_namespace('md-float-preview-cursor-' .. src_buf)
 local saved_edit_opts = nil
 
-local function apply_edit_wrap(width)
+local function valid_win(win)
+  return win and vim.api.nvim_win_is_valid(win)
+end
+local function valid_buf(buf)
+  return buf and vim.api.nvim_buf_is_valid(buf)
+end
+
+local function source_edit_win()
+  for _, win in ipairs(vim.fn.win_findbuf(src_buf)) do
+    if vim.api.nvim_win_is_valid(win) then
+      local cfg = vim.api.nvim_win_get_config(win)
+      if cfg.relative == '' then return win end
+    end
+  end
+  local cur = vim.api.nvim_get_current_win()
+  if vim.api.nvim_win_is_valid(cur) and vim.api.nvim_win_get_buf(cur) == src_buf then
+    return cur
+  end
+  return nil
+end
+
+local function compute_edit_width(preview_col)
+  local src_win = source_edit_win()
+  if not src_win then
+    return math.max(20, (preview_col or (vim.o.columns - 40)) - 4)
+  end
+  local win_pos = vim.api.nvim_win_get_position(src_win) -- {row, col} in editor
+  local win_width = vim.api.nvim_win_get_width(src_win)
+  local info = vim.fn.getwininfo(src_win)[1] or {}
+  local textoff = info.textoff or 0
+  local available = win_width - textoff - 2
+  if preview_col then
+    local overlap = math.max(0, (win_pos[2] + win_width) - preview_col)
+    available = win_width - textoff - overlap - 2
+  end
+  return math.max(20, available)
+end
+
+local function apply_edit_wrap(preview_col)
+  if not valid_buf(src_buf) then return end
   if not saved_edit_opts then
     saved_edit_opts = {
       textwidth = vim.bo[src_buf].textwidth,
       formatoptions = vim.bo[src_buf].formatoptions,
     }
   end
-  local tw = math.max(20, width - 2)
+  local tw = compute_edit_width(preview_col)
   vim.bo[src_buf].textwidth = tw
-  -- auto-wrap text as you type; keep comments/list behavior as configured
-  if not vim.bo[src_buf].formatoptions:find('t', 1, true) then
-    vim.bo[src_buf].formatoptions = vim.bo[src_buf].formatoptions .. 't'
-  end
+  local fo = vim.bo[src_buf].formatoptions
+  -- Ensure auto-wrap while typing; keep 'l' off so long lines can be wrapped.
+  if not fo:find('t', 1, true) then fo = fo .. 't' end
+  fo = fo:gsub('l', '')
+  vim.bo[src_buf].formatoptions = fo
 end
 
 local function restore_edit_wrap()
@@ -66,13 +106,6 @@ local function restore_edit_wrap()
     vim.bo[src_buf].formatoptions = saved_edit_opts.formatoptions
   end
   saved_edit_opts = nil
-end
-
-local function valid_win(win)
-  return win and vim.api.nvim_win_is_valid(win)
-end
-local function valid_buf(buf)
-  return buf and vim.api.nvim_buf_is_valid(buf)
 end
 
 local function set_source_rendering(enabled)
@@ -153,6 +186,9 @@ local function open_preview()
   end
   if valid_win(state.win) and valid_buf(state.buf) then
     set_source_rendering(false)
+    local cfg = vim.api.nvim_win_get_config(state.win)
+    local preview_col = type(cfg.col) == 'number' and cfg.col or (type(cfg.col) == 'table' and cfg.col[false] or nil)
+    apply_edit_wrap(preview_col)
     sync_preview()
     return
   end
@@ -170,7 +206,7 @@ local function open_preview()
   local col = math.max(1, vim.o.columns - width - 2)
 
   -- Wrap source text before it runs behind the floating preview.
-  apply_edit_wrap(col - 2)
+  apply_edit_wrap(col)
 
   local win = vim.api.nvim_open_win(preview_buf, false, {
     relative = 'editor',
