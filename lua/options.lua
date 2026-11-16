@@ -26,6 +26,14 @@
 -- General ====================================================================
 vim.g.mapleader = ' ' -- Use `<Space>` as <Leader> key
 
+-- Use 'mini.files' as the only directory explorer. Its setup in
+-- 'lua/plugins/mini.lua' already removes the built-in `FileExplorer` handler,
+-- but disabling netrw here also prevents it from loading as a fallback when a
+-- directory is opened before that plugin is set up (for example from a script
+-- or `:edit <dir>` during a very early startup).
+vim.g.loaded_netrw = 1
+vim.g.loaded_netrwPlugin = 1
+
 vim.o.mouse       = 'a'            -- Enable mouse
 vim.o.mousescroll = 'ver:25,hor:6' -- Customize mouse scroll
 vim.o.switchbuf   = 'usetab'       -- Use already opened buffers when switching
@@ -178,9 +186,8 @@ vim.o.clipboard = 'unnamedplus'
 -- Autocmds ===================================================================
 
 -- On idle, show signature help (falling back to hover) plus diagnostics of the
--- current line in a floating window. Ported as-is from 'lua/config/autocmds.lua'
--- of the previous LazyVim config, including the "skip while a floating window
--- is already open" guard.
+-- current line in a floating window. Requests are capability-gated so servers
+-- that do not support a method are never queried (avoids "not supported" errors).
 local last_symbol = nil
 
 local get_line_diagnostics = function()
@@ -218,9 +225,40 @@ local append_diagnostics = function(contents, diags)
   return contents
 end
 
+local function first_client_with_method(bufnr, method)
+  local ok, clients = pcall(vim.lsp.get_clients, { bufnr = bufnr, method = method })
+  if ok and clients and #clients > 0 then
+    return clients[1]
+  end
+  for _, client in ipairs(vim.lsp.get_clients({ bufnr = bufnr })) do
+    local supports = client.supports_method and client:supports_method(method, { bufnr = bufnr })
+      or (client.server_capabilities and (
+        (method == 'textDocument/signatureHelp' and client.server_capabilities.signatureHelpProvider)
+        or (method == 'textDocument/hover' and client.server_capabilities.hoverProvider)
+      ))
+    if supports then
+      return client
+    end
+  end
+  return nil
+end
+
+local function make_params(client)
+  if vim.lsp.util and vim.lsp.util.make_position_params then
+    local ok, params = pcall(vim.lsp.util.make_position_params, 0, client and client.offset_encoding or 'utf-16')
+    if ok and params then
+      return params
+    end
+  end
+  local pos = vim.api.nvim_win_get_cursor(0)
+  return {
+    textDocument = { uri = vim.uri_from_bufnr(0) },
+    position = { line = pos[1] - 1, character = pos[2] },
+  }
+end
+
 local show_signature_or_hover = function()
   local bufnr = vim.api.nvim_get_current_buf()
-  local params = vim.lsp.util.make_position_params(0, 'utf-8')
 
   -- Avoid duplicate trigger if still on the same symbol
   local symbol_id = symbol_at_cursor()
@@ -231,30 +269,52 @@ local show_signature_or_hover = function()
 
   local diags = get_line_diagnostics()
 
-  -- Try signature help first
-  vim.lsp.buf_request(bufnr, 'textDocument/signatureHelp', params, function(err, result)
-    if err or not result or not result.signatures or vim.tbl_isempty(result.signatures) then
-      -- Fall back to hover if there is no signature
-      vim.lsp.buf_request(bufnr, 'textDocument/hover', params, function(err2, result2)
-        if err2 or not result2 or not result2.contents then
-          show_diagnostics(diags)
-          return
-        end
-        local contents = vim.lsp.util.convert_input_to_markdown_lines(result2.contents)
-        append_diagnostics(contents, diags)
-        vim.lsp.util.open_floating_preview(contents, 'markdown', { border = 'rounded' })
-      end)
+  local sig_client = first_client_with_method(bufnr, 'textDocument/signatureHelp')
+  local hover_client = first_client_with_method(bufnr, 'textDocument/hover')
+
+  local function try_hover()
+    if not hover_client then
+      show_diagnostics(diags)
       return
     end
-
-    local contents = vim.lsp.util.convert_signature_help_to_markdown_lines(result)
-    if contents and not vim.tbl_isempty(contents) then
+    local params = make_params(hover_client)
+    hover_client.request('textDocument/hover', params, function(err, result)
+      if err or not result or not result.contents then
+        vim.schedule(function() show_diagnostics(diags) end)
+        return
+      end
+      local contents = vim.lsp.util.convert_input_to_markdown_lines(result.contents)
       append_diagnostics(contents, diags)
-      vim.lsp.util.open_floating_preview(contents, 'markdown', { border = 'rounded' })
-    else
-      show_diagnostics(diags)
-    end
-  end)
+      vim.schedule(function()
+        if contents and not vim.tbl_isempty(contents) then
+          vim.lsp.util.open_floating_preview(contents, 'markdown', { border = 'rounded' })
+        else
+          show_diagnostics(diags)
+        end
+      end)
+    end, bufnr)
+  end
+
+  if sig_client then
+    local params = make_params(sig_client)
+    sig_client.request('textDocument/signatureHelp', params, function(err, result)
+      if err or not result or not result.signatures or vim.tbl_isempty(result.signatures) then
+        vim.schedule(try_hover)
+        return
+      end
+      local contents = vim.lsp.util.convert_signature_help_to_markdown_lines(result)
+      if contents and not vim.tbl_isempty(contents) then
+        append_diagnostics(contents, diags)
+        vim.schedule(function()
+          vim.lsp.util.open_floating_preview(contents, 'markdown', { border = 'rounded' })
+        end)
+      else
+        vim.schedule(try_hover)
+      end
+    end, bufnr)
+  else
+    try_hover()
+  end
 end
 
 -- WGSL validation ============================================================
@@ -337,28 +397,11 @@ if vim.fn.executable('naga') == 1 then
 end
 
 vim.api.nvim_create_autocmd('CursorHold', {
-  pattern = {
-    '*.sh',
-    '*.fish',
-    '*.ts',
-    '*.tsx',
-    '*.js',
-    '*.jsx',
-    '*.mjs',
-    '*.cjs',
-    '*.lua',
-    '*.go',
-    '*.zig',
-    '*.rs',
-    '*.py',
-    '*.css',
-    '*.html',
-    '*.toml',
-    '*.yml',
-    '*.yaml',
-    '*.wgsl',
-  },
-  callback = function()
+  callback = function(ev)
+    -- Only show LSP hover/signature when a server is attached to this buffer.
+    if #vim.lsp.get_clients({ bufnr = ev.buf }) == 0 or vim.cmd('set ft') == 'filetype=markdown' then
+      return
+    end
     -- Skip if a floating window is already showing (user is reading hover/sig)
     for _, win in ipairs(vim.api.nvim_list_wins()) do
       local config = vim.api.nvim_win_get_config(win)
@@ -369,4 +412,5 @@ vim.api.nvim_create_autocmd('CursorHold', {
     show_signature_or_hover()
   end,
   group = vim.api.nvim_create_augroup('LspSignatureHoverDiagnostics', { clear = true }),
+  desc = 'Show hover/signature or diagnostics for attached LSP buffers',
 })
