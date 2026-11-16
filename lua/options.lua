@@ -399,7 +399,7 @@ end
 vim.api.nvim_create_autocmd('CursorHold', {
   callback = function(ev)
     -- Only show LSP hover/signature when a server is attached to this buffer.
-    if #vim.lsp.get_clients({ bufnr = ev.buf }) == 0 or vim.cmd('set ft') == 'filetype=markdown' then
+    if #vim.lsp.get_clients({ bufnr = ev.buf }) == 0 or vim.bo[ev.buf].filetype == 'markdown' then
       return
     end
     -- Skip if a floating window is already showing (user is reading hover/sig)
