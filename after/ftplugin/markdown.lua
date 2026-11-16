@@ -2,8 +2,14 @@
 -- │ Markdown filetype config │
 -- └─────────────────────────┘
 
--- Enable spelling and soft wrapping for prose
-vim.cmd('setlocal spell wrap linebreak breakindent')
+-- Enable spelling and wrapping for prose. Keep lines <= 80 chars.
+vim.cmd('setlocal spell wrap linebreak breakindent textwidth=80')
+do
+  local fo = vim.bo.formatoptions
+  if not fo:find('t', 1, true) then fo = fo .. 't' end
+  fo = fo:gsub('l', '')
+  vim.bo.formatoptions = fo
+end
 
 -- Fold with tree-sitter
 vim.cmd('setlocal foldmethod=expr foldexpr=v:lua.vim.treesitter.foldexpr()')
@@ -109,7 +115,7 @@ local function in_fenced_code(line_nr)
 end
 
 local function enforce_wrap_guard()
-  if enforcing_wrap or not valid_win(state.win) or not valid_buf(src_buf) then return end
+  if enforcing_wrap or not valid_buf(src_buf) then return end
   if not wrap_limit or wrap_limit < 20 then return end
   local mode = vim.api.nvim_get_mode().mode
   if not mode:match('^i') and not mode:match('^R') then return end
@@ -120,15 +126,11 @@ local function enforce_wrap_guard()
   if not ok_cur then return end
   local row, col = cur[1], cur[2] -- 1-based row, 0-based byte col
   local line = vim.api.nvim_buf_get_lines(src_buf, row - 1, row, false)[1] or ''
-  if #line == 0 then return end
+  if vim.fn.strdisplaywidth(line) <= wrap_limit then return end
   if in_fenced_code(row) then return end
 
-  local ok_vc, vcol = pcall(vim.fn.virtcol, { row, col + 1 })
-  if not ok_vc then return end
-  if vcol <= wrap_limit + 1 then return end
-
-  -- Find last whitespace break point at or before limit (display columns).
-  local break_byte = nil
+  -- Build break points by display width.
+  local chars = {} -- {byte_start(1-based), byte_end(1-based), disp_end, is_space}
   local i = 1
   local disp = 0
   while i <= #line do
@@ -137,35 +139,70 @@ local function enforce_wrap_guard()
     if b then
       if b >= 240 then chlen = 4 elseif b >= 224 then chlen = 3 elseif b >= 192 then chlen = 2 end
     end
-    local ch = line:sub(i, i + chlen - 1)
+    local j = i + chlen - 1
+    local ch = line:sub(i, j)
     local w = vim.fn.strdisplaywidth(ch)
-    if disp + w > wrap_limit then break end
     disp = disp + w
-    local next_i = i + chlen
-    if ch:match('%s') and next_i - 1 < col then
-      break_byte = i -- byte index (1-based) of whitespace char
-    end
-    i = next_i
+    chars[#chars + 1] = { i, j, disp, ch:match('%s') ~= nil }
+    i = j + 1
   end
-  if not break_byte then return end
-  -- avoid breaking too early or in indentation-only area
-  local prefix = line:sub(1, break_byte - 1)
-  if prefix:match('^%s*$') then return end
+  if #chars == 0 then return end
+
+  -- Prefer last whitespace at/before limit and before cursor.
+  local break_idx = nil
+  for idx, c in ipairs(chars) do
+    if c[3] > wrap_limit then break end
+    if c[4] and c[2] < col then break_idx = idx end
+  end
+  -- Force break at limit if no suitable whitespace (hard wrap).
+  if not break_idx then
+    for idx, c in ipairs(chars) do
+      if c[3] > wrap_limit then
+        break_idx = math.max(1, idx - 1)
+        break
+      end
+    end
+  end
+  if not break_idx or break_idx < 1 then break_idx = #chars end
+
+  local split_at = chars[break_idx][2] -- byte end of break char
+  local before = line:sub(1, split_at)
+  local after = line:sub(split_at + 1)
+  local break_is_space = chars[break_idx][4]
+  if break_is_space then
+    before = before:gsub('%s+$', '')
+    after = after:gsub('^%s+', '')
+  end
+  if before == line or (before:match('^%s*$') and not break_is_space) then return end
+
+  -- Keep indentation for wrapped continuation when breaking on whitespace.
+  if break_is_space and not after:match('^%s') then
+    local indent = line:match('^(%s*)') or ''
+    -- avoid duplicating list markers crudely; basic indent carry-over is safer
+    if indent ~= '' and not indent:match('[%-%*%+%>%d]') then
+      after = indent .. after
+    end
+  end
 
   enforcing_wrap = true
   local ok_mod = pcall(function()
-    local before = line:sub(1, break_byte - 1):gsub('%s+$', '')
-    local after = line:sub(break_byte):gsub('^%s+', '')
     vim.api.nvim_buf_set_lines(src_buf, row - 1, row, false, { before, after })
     local new_row = row + 1
-    local new_col = math.min(col - break_byte, #after)
-    if new_col < 0 then new_col = #after end
-    pcall(vim.api.nvim_win_set_cursor, src_win, { new_row, new_col })
+    if col <= split_at then
+      -- cursor was at/before split: keep on first line (clamped)
+      pcall(vim.api.nvim_win_set_cursor, src_win, { row, math.min(col, #before) })
+    else
+      local moved = col - split_at
+      local delta = #after - (#line - split_at)
+      local new_col = moved + delta
+      if new_col < 0 then new_col = 0 end
+      if new_col > #after then new_col = #after end
+      pcall(vim.api.nvim_win_set_cursor, src_win, { new_row, new_col })
+    end
   end)
   enforcing_wrap = false
-  if ok_mod then
-    -- keep preview/text state in sync
-    pcall(sync_preview)
+  if ok_mod and valid_buf(state.buf) then
+    vim.schedule(sync_preview)
   end
 end
 
@@ -177,7 +214,7 @@ local function apply_edit_wrap(preview_col)
       formatoptions = vim.bo[src_buf].formatoptions,
     }
   end
-  local tw = compute_edit_width(preview_col)
+  local tw = math.min(80, compute_edit_width(preview_col))
   wrap_limit = tw
   vim.bo[src_buf].textwidth = tw
   local fo = vim.bo[src_buf].formatoptions
@@ -364,18 +401,20 @@ vim.api.nvim_create_autocmd({ 'InsertLeave', 'BufLeave', 'BufWipeout' }, {
   desc = 'Close floating markdown preview when leaving edit mode',
 })
 
-vim.api.nvim_create_autocmd({ 'TextChangedI', 'TextChanged', 'TextChangedP' }, {
+vim.api.nvim_create_autocmd({ 'TextChangedI', 'TextChangedP' }, {
   group = aug,
   buffer = src_buf,
   callback = function()
-    if valid_win(state.win) and valid_buf(state.buf) then
+    if valid_buf(src_buf) then
       if not enforcing_wrap then
         enforce_wrap_guard()
       end
-      vim.schedule(sync_preview)
+      if valid_win(state.win) and valid_buf(state.buf) then
+        vim.schedule(sync_preview)
+      end
     end
   end,
-  desc = 'Sync floating markdown preview content live',
+  desc = 'Enforce markdown wrap and sync floating preview live',
 })
 
 vim.api.nvim_create_autocmd({ 'CursorMovedI', 'CursorMoved' }, {
