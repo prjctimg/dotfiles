@@ -2,8 +2,8 @@
 -- │ Markdown filetype config │
 -- └─────────────────────────┘
 
--- Enable spelling and wrap for window
-vim.cmd('setlocal spell wrap')
+-- Enable spelling and soft wrapping for prose
+vim.cmd('setlocal spell wrap linebreak breakindent')
 
 -- Fold with tree-sitter
 vim.cmd('setlocal foldmethod=expr foldexpr=v:lua.vim.treesitter.foldexpr()')
@@ -42,6 +42,31 @@ local state = vim.b[src_buf].md_float_preview_state or { win = nil, buf = nil }
 vim.b[src_buf].md_float_preview_state = state
 local aug = vim.api.nvim_create_augroup('md-float-preview-' .. src_buf, { clear = true })
 local ns = vim.api.nvim_create_namespace('md-float-preview-cursor-' .. src_buf)
+local saved_edit_opts = nil
+
+local function apply_edit_wrap(width)
+  if not saved_edit_opts then
+    saved_edit_opts = {
+      textwidth = vim.bo[src_buf].textwidth,
+      formatoptions = vim.bo[src_buf].formatoptions,
+    }
+  end
+  local tw = math.max(20, width - 2)
+  vim.bo[src_buf].textwidth = tw
+  -- auto-wrap text as you type; keep comments/list behavior as configured
+  if not vim.bo[src_buf].formatoptions:find('t', 1, true) then
+    vim.bo[src_buf].formatoptions = vim.bo[src_buf].formatoptions .. 't'
+  end
+end
+
+local function restore_edit_wrap()
+  if not saved_edit_opts then return end
+  if valid_buf(src_buf) then
+    vim.bo[src_buf].textwidth = saved_edit_opts.textwidth
+    vim.bo[src_buf].formatoptions = saved_edit_opts.formatoptions
+  end
+  saved_edit_opts = nil
+end
 
 local function valid_win(win)
   return win and vim.api.nvim_win_is_valid(win)
@@ -65,6 +90,7 @@ local function close_preview()
     pcall(vim.api.nvim_buf_delete, state.buf, { force = true })
   end
   set_source_rendering(true)
+  restore_edit_wrap()
   state.win, state.buf = nil, nil
   vim.b[src_buf].md_float_preview_state = state
 end
@@ -143,6 +169,9 @@ local function open_preview()
   local row = math.max(1, math.floor((vim.o.lines - height) / 2 - 1))
   local col = math.max(1, vim.o.columns - width - 2)
 
+  -- Wrap source text before it runs behind the floating preview.
+  apply_edit_wrap(col - 2)
+
   local win = vim.api.nvim_open_win(preview_buf, false, {
     relative = 'editor',
     width = width,
@@ -179,6 +208,7 @@ local function open_preview()
     callback = function()
       if state.buf == preview_buf then
         set_source_rendering(true)
+        restore_edit_wrap()
         state.buf, state.win = nil, nil
         vim.b[src_buf].md_float_preview_state = state
       end
