@@ -3,7 +3,7 @@
 -- └─────────────────────────┘
 
 -- Enable spelling and wrapping for prose. Keep lines <= 80 chars.
-vim.cmd('setlocal spell wrap linebreak breakindent textwidth=80')
+vim.cmd('setlocal spell wrap linebreak breakindent textwidth=80 colorcolumn=')
 do
   local fo = vim.bo.formatoptions
   if not fo:find('t', 1, true) then fo = fo .. 't' end
@@ -51,6 +51,7 @@ local ns = vim.api.nvim_create_namespace('md-float-preview-cursor-' .. src_buf)
 local saved_edit_opts = nil
 local wrap_limit = nil
 local enforcing_wrap = false
+local sync_preview, sync_cursor
 
 local function valid_win(win)
   return win and vim.api.nvim_win_is_valid(win)
@@ -254,7 +255,7 @@ local function close_preview()
   vim.b[src_buf].md_float_preview_state = state
 end
 
-local function sync_cursor()
+sync_cursor = function()
   if not (valid_buf(src_buf) and valid_win(state.win) and valid_buf(state.buf)) then
     return
   end
@@ -284,7 +285,7 @@ local function sync_cursor()
   end)
 end
 
-local function sync_preview()
+sync_preview = function()
   if not (valid_buf(src_buf) and valid_buf(state.buf)) then
     return
   end
