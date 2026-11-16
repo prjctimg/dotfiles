@@ -41,6 +41,7 @@ vim.b[src_buf].md_float_preview_setup = true
 local state = vim.b[src_buf].md_float_preview_state or { win = nil, buf = nil }
 vim.b[src_buf].md_float_preview_state = state
 local aug = vim.api.nvim_create_augroup('md-float-preview-' .. src_buf, { clear = true })
+local ns = vim.api.nvim_create_namespace('md-float-preview-cursor-' .. src_buf)
 
 local function valid_win(win)
   return win and vim.api.nvim_win_is_valid(win)
@@ -49,13 +50,21 @@ local function valid_buf(buf)
   return buf and vim.api.nvim_buf_is_valid(buf)
 end
 
+local function set_source_rendering(enabled)
+  pcall(function()
+    require('render-markdown.core.manager').set_buf(src_buf, enabled)
+  end)
+end
+
 local function close_preview()
   if valid_win(state.win) then
     pcall(vim.api.nvim_win_close, state.win, true)
   end
   if valid_buf(state.buf) then
+    pcall(vim.api.nvim_buf_clear_namespace, state.buf, ns, 0, -1)
     pcall(vim.api.nvim_buf_delete, state.buf, { force = true })
   end
+  set_source_rendering(true)
   state.win, state.buf = nil, nil
   vim.b[src_buf].md_float_preview_state = state
 end
@@ -73,6 +82,18 @@ local function sync_cursor()
   local target_line = vim.api.nvim_buf_get_lines(state.buf, line - 1, line, false)[1] or ''
   local col = math.max(0, math.min(pos[2], #target_line))
   pcall(vim.api.nvim_win_set_cursor, state.win, { line, col })
+  pcall(vim.api.nvim_buf_clear_namespace, state.buf, ns, 0, -1)
+  pcall(vim.api.nvim_buf_set_extmark, state.buf, ns, line - 1, 0, {
+    end_row = line,
+    hl_group = 'CursorLine',
+    hl_eol = true,
+    priority = 200,
+  })
+  pcall(vim.api.nvim_buf_set_extmark, state.buf, ns, line - 1, 0, {
+    virt_text = { { '▌ ', 'Special' } },
+    virt_text_pos = 'overlay',
+    priority = 210,
+  })
   pcall(vim.api.nvim_win_call, state.win, function()
     vim.cmd('normal! zz')
   end)
@@ -87,7 +108,9 @@ local function sync_preview()
   pcall(vim.api.nvim_buf_set_lines, state.buf, 0, -1, false, lines)
   vim.bo[state.buf].modifiable = false
   if vim.bo[state.buf].filetype ~= vim.bo[src_buf].filetype then
-    pcall(function() vim.bo[state.buf].filetype = vim.bo[src_buf].filetype end)
+    pcall(function()
+      vim.bo[state.buf].filetype = vim.bo[src_buf].filetype
+    end)
   end
   pcall(function()
     require('render-markdown').render({ buf = state.buf })
@@ -103,6 +126,7 @@ local function open_preview()
     return
   end
   if valid_win(state.win) and valid_buf(state.buf) then
+    set_source_rendering(false)
     sync_preview()
     return
   end
@@ -139,10 +163,13 @@ local function open_preview()
   vim.wo[win].number = false
   vim.wo[win].relativenumber = false
   vim.wo[win].signcolumn = 'no'
-  vim.wo[win].cursorline = false
+  vim.wo[win].cursorline = true
+  vim.wo[win].cursorlineopt = 'line'
+  vim.wo[win].winhighlight = 'CursorLine:IncSearch'
 
   state.buf, state.win = preview_buf, win
   vim.b[src_buf].md_float_preview_state = state
+  set_source_rendering(false)
   sync_preview()
 
   vim.api.nvim_create_autocmd('BufWipeout', {
@@ -151,6 +178,7 @@ local function open_preview()
     once = true,
     callback = function()
       if state.buf == preview_buf then
+        set_source_rendering(true)
         state.buf, state.win = nil, nil
         vim.b[src_buf].md_float_preview_state = state
       end
