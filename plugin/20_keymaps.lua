@@ -210,7 +210,8 @@ xmap_leader('gs', '<Cmd>lua MiniGit.show_at_cursor()<CR>', 'Show at selection')
 local inc_rename = function()
   for _, client in ipairs(vim.lsp.get_clients({ bufnr = 0 })) do
     if client:supports_method('textDocument/rename') then
-      vim.cmd('IncRename')
+      local keys = ':IncRename ' .. vim.fn.expand('<cword>')
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(keys, true, false, true), 'n', false)
       return
     end
   end
