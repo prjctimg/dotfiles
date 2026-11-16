@@ -60,18 +60,39 @@ local function close_preview()
   vim.b[src_buf].md_float_preview_state = state
 end
 
+local function sync_cursor()
+  if not (valid_buf(src_buf) and valid_win(state.win) and valid_buf(state.buf)) then
+    return
+  end
+  local ok, pos = pcall(vim.api.nvim_win_get_cursor, 0)
+  if not ok or type(pos) ~= 'table' then
+    return
+  end
+  local line_count = vim.api.nvim_buf_line_count(state.buf)
+  local line = math.max(1, math.min(pos[1], math.max(1, line_count)))
+  local target_line = vim.api.nvim_buf_get_lines(state.buf, line - 1, line, false)[1] or ''
+  local col = math.max(0, math.min(pos[2], #target_line))
+  pcall(vim.api.nvim_win_set_cursor, state.win, { line, col })
+  pcall(vim.api.nvim_win_call, state.win, function()
+    vim.cmd('normal! zz')
+  end)
+end
+
 local function sync_preview()
   if not (valid_buf(src_buf) and valid_buf(state.buf)) then
     return
   end
   local lines = vim.api.nvim_buf_get_lines(src_buf, 0, -1, false)
   vim.bo[state.buf].modifiable = true
-  vim.api.nvim_buf_set_lines(state.buf, 0, -1, false, lines)
+  pcall(vim.api.nvim_buf_set_lines, state.buf, 0, -1, false, lines)
   vim.bo[state.buf].modifiable = false
-  pcall(vim.bo[state.buf], 'filetype', 'markdown')
+  if vim.bo[state.buf].filetype ~= vim.bo[src_buf].filetype then
+    pcall(function() vim.bo[state.buf].filetype = vim.bo[src_buf].filetype end)
+  end
   pcall(function()
     require('render-markdown').render({ buf = state.buf })
   end)
+  sync_cursor()
 end
 
 local function open_preview()
@@ -141,7 +162,10 @@ vim.api.nvim_create_autocmd('InsertEnter', {
   group = aug,
   buffer = src_buf,
   callback = function()
-    vim.schedule(open_preview)
+    vim.schedule(function()
+      open_preview()
+      sync_preview()
+    end)
   end,
   desc = 'Open floating markdown preview while editing',
 })
@@ -157,7 +181,7 @@ vim.api.nvim_create_autocmd({ 'InsertLeave', 'BufLeave', 'BufWipeout' }, {
   desc = 'Close floating markdown preview when leaving edit mode',
 })
 
-vim.api.nvim_create_autocmd({ 'TextChangedI', 'TextChanged' }, {
+vim.api.nvim_create_autocmd({ 'TextChangedI', 'TextChanged', 'TextChangedP' }, {
   group = aug,
   buffer = src_buf,
   callback = function()
@@ -165,5 +189,16 @@ vim.api.nvim_create_autocmd({ 'TextChangedI', 'TextChanged' }, {
       vim.schedule(sync_preview)
     end
   end,
-  desc = 'Sync floating markdown preview content',
+  desc = 'Sync floating markdown preview content live',
+})
+
+vim.api.nvim_create_autocmd({ 'CursorMovedI', 'CursorMoved' }, {
+  group = aug,
+  buffer = src_buf,
+  callback = function()
+    if valid_win(state.win) and valid_buf(state.buf) then
+      vim.schedule(sync_cursor)
+    end
+  end,
+  desc = 'Sync floating markdown preview cursor position',
 })
