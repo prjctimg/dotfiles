@@ -1,39 +1,3 @@
--- ┌─────────────┐
--- │ Tree-sitter │
--- └─────────────┘
---
--- Tree-sitter is a tool for fast incremental parsing. It converts text into
--- a hierarchical structure (called tree) that can be used to implement advanced
--- and/or more precise actions: syntax highlighting, textobjects, indent, etc.
---
--- Tree-sitter support is built into Neovim (see `:h treesitter`). However, it
--- requires two extra pieces that don't come with Neovim directly:
--- - Language parsers: programs that convert text into trees. Some are built-in
---   (like for Lua), 'nvim-treesitter' provides many others.
---   NOTE: It requires third party software to build and install parsers.
---   See the link for more info in "Requirements" section in MiniMax README.
--- - Query files: definitions of how to extract information from trees in
---   a useful manner (see `:h treesitter-query`). 'nvim-treesitter' also provides
---   these, while 'nvim-treesitter-textobjects' provides the ones for Neovim
---   textobjects (see `:h text-objects`, `:h MiniAi.gen_spec.treesitter()`).
---
--- Troubleshooting:
--- - Run `:checkhealth vim.treesitter nvim-treesitter` to see potential issues.
--- - In case of errors related to queries for Neovim bundled parsers (like `lua`,
---   `vimdoc`, `markdown`, etc.), manually install them via 'nvim-treesitter'
---   with `:TSInstall <language>`. Be sure to have necessary system dependencies
---   (see MiniMax README section for software requirements).
-
--- Languages which have parsers installed and auto enabled. After changing this,
--- restart Neovim once to install the necessary parsers (see the `VimEnter` hook
--- below); wait for the installation to finish before opening a file that uses an
--- added language.
---
--- NOTE: a parser shipping with Neovim still has to be listed here. Tree-sitter is
--- only *started* by the `FileType` autocmd below, so a missing entry means no
--- highlighting even when `parser/<lang>.so` exists ('wgsl' was exactly this: a
--- bundled parser, never started). Neovim 0.12 bundles: c, lua, markdown,
--- markdown_inline, query, vim, vimdoc, wgsl, and all of the ones below.
 local languages = {
   -- Bundled with Neovim
   'lua',
@@ -53,10 +17,7 @@ local languages = {
   'json',
   'toml',
   'yaml',
-  -- Grayscale. The parser is not in nvim-treesitter's registry; it is registered
-  -- from the `TSUpdate` hook below and built from the upstream grammar repo.
   'gray',
-  -- Web / styling / scripting / packaging used across the workspace
   'css',
   'html',
   'python',
@@ -70,17 +31,9 @@ local languages = {
 return {
   {
     'nvim-treesitter/nvim-treesitter',
-    -- `:TSUpdate` after every install/update. This replaces the `PackChanged`
-    -- hook that the previous `vim.pack` setup used to re-run the same thing.
-    build = ':TSUpdate',
-    -- `now_if_args()` in the old config meant "only when Neovim is started with
-    -- a file". `BufReadPre` has exactly that meaning -- it does not fire for
-    -- the bare `nvim` starter, and it fires *before* the `FileType` autocmd
-    -- below runs, so highlighting is ready for the very first buffer.
-    -- `BufNewFile` covers `:e new-file.lua` for a file that does not exist yet.
     event = { 'BufReadPre', 'BufNewFile' },
     config = function()
-      -- Grayscale parser registration ==========================================
+      -- Grayscale parser registration
       --
       -- 'tree-sitter-gray' is not part of nvim-treesitter's parser registry, so
       -- it has to be added to `require('nvim-treesitter.parsers')` from the

@@ -536,9 +536,6 @@ end, { desc = 'Colorschemes' })
 -- │ LazyVim-style window/terminal mappings                 │
 -- ╰──────────────────────────────────────────────────────────╯
 
--- Undo/Redo with Ctrl+Z/Y (LazyVim style)
-map('n', '<C-z>', '<cmd>undo<CR>', { desc = 'Undo' })
-map('n', '<C-y>', '<cmd>redo<CR>', { desc = 'Redo' })
 
 -- LazyVim-parity additions ------------------------------------------------
 map('n', '<Leader>qq', '<Cmd>qa<CR>', { desc = 'Quit all' })
@@ -645,19 +642,10 @@ map({ 'n', 'i', 'v', 't', 'x', 'o' }, '<S-Left>', v_mv('h'))
 map({ 'n', 'i', 'v', 't', 'x', 'o' }, '<S-Up>', v_mv('k'))
 map({ 'n', 'i', 'v', 't', 'x', 'o' }, '<S-Down>', v_mv('j'))
 map({ 'n', 'i', 'v', 't', 'x', 'o' }, '<S-Right>', v_mv('l'))
-map({ 'n', 'i', 'v' }, '<C-a>', '<ESC>gg0v$G$')
 map({ 'n', 'i', 'v' }, '<ESC>', '<ESC><ESC>')
 map({ 'i', 'n', 'v', 'x', 'o' }, '<C-Tab>', '<cmd>bnext<CR>')
 map({ 'i', 'n', 'v', 'x', 'o' }, '<S-Tab>', '<cmd>bprevious<CR>')
 
--- Buffer management
-map({ 'n', 'i' }, '<C-q>', function()
-  if vim.api.nvim_buf_is_valid(0) then
-    vim.cmd('bd')
-  else
-    vim.cmd('close')
-  end
-end)
 
 -- Floating terminals (was 'Snacks.terminal.toggle')
 --
@@ -799,9 +787,6 @@ end) -- lsp_workspace_symbols
 map({ 'n', 'i' }, '<A-y>', function()
   vim.cmd('YankyRingHistory')
 end) -- yank history
--- yanky ring cycling (Normal mode only so 'mini.completion' keeps <C-p>/<C-n>)
-map('n', '<C-p>', '<Plug>(YankyCycleForward)')
-map('n', '<C-n>', '<Plug>(YankyCycleBackward)')
 map({ 'n', 'i' }, '<A-h>', function()
   vim.cmd('Pick help')
 end) -- help

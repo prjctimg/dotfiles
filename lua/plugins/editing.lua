@@ -92,6 +92,7 @@ return {
           sh = { 'shfmt' },
           bash = { 'shfmt' },
           fish = { 'fish_indent' },
+          odin = { 'odinfmt' },
           -- `gray`, `wgsl`, `nix`, `python`, `css` and `html` have no dedicated
           -- formatter binary configured, so they are deliberately NOT listed
           -- here: a missing entry makes conform use the attached LSP instead

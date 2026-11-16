@@ -110,4 +110,15 @@ return {
       })
     end,
   },
+
+  -- Inline assembly viewer for C, C++, and Rust (uses cc/c++/rustc/cargo).
+  -- <leader>a in Normal mode shows assembly for the function under cursor;
+  -- in Visual mode or with :'<,'>Asm for the selected lines.
+  {
+    '0xdeadf1sh/AssemblyForNeovim',
+    event = 'VeryLazy',
+    config = function()
+      require('asm').setup()
+    end,
+  },
 }

@@ -64,8 +64,9 @@ return {
           -- Manage options in 'lua/options.lua' for didactic purposes
           options = { basic = false },
           mappings = {
-            -- Create `<C-hjkl>` mappings for window navigation
-            windows = true,
+            -- Disabled to avoid overriding default Vim `<C-hjkl>` keybindings
+            -- (e.g. `<C-l>` redraws the screen in Normal mode).
+            windows = false,
             -- Disabled: its Insert/Terminal `<M-hjkl>` mappings would shadow the
             -- `<A-h>`/`<A-j>` picker mappings ported in 'plugin/20_keymaps.lua'.
             move_with_alt = false,
@@ -287,10 +288,16 @@ return {
       -- - `:h MiniFiles-navigation` - more details about how to navigate
       -- - `:h MiniFiles-manipulation` - more details about how to manipulate
       -- - `:h MiniFiles-examples` - examples of common setups
-      now_if_args(function()
+      now(function()
         -- Personal config from the previous LazyVim setup (keymaps set there plus
         -- the window options and buffer-local mappings of the LazyVim 'mini-files'
         -- extra). Enable directory/file preview.
+        --
+        -- This is also the default directory explorer, so set it up during
+        -- startup even when Neovim was started without file arguments. Keeping
+        -- the `now_if_args()` deferral here would leave `:edit <dir>` with the
+        -- built-in explorer or an unconfigured `minifiles://` buffer until the
+        -- scheduled setup ran.
         require('mini.files').setup({
           mappings = {
             close = '<ESC>',
@@ -307,7 +314,11 @@ return {
             trim_left = '<',
             trim_right = '>',
           },
-          options = { use_as_default_explorer = false },
+          -- Use mini.files for `nvim <dir>`, `:edit <dir>`, and every other
+          -- directory edit instead of netrw. This removes the built-in
+          -- `FileExplorer` autocommand and installs mini.files' own directory
+          -- tracking. Netrw is disabled in 'lua/options.lua' as a second guard.
+          options = { use_as_default_explorer = true },
           windows = {
             max_number = math.huge,
             preview = true,
@@ -348,7 +359,7 @@ return {
         -- Buffer-local mappings (from the LazyVim 'mini-files' extra):
         -- - `g.` - toggle hidden files (shown by default)
         -- - `gc` - set working directory to the entry under cursor
-        -- - `<C-w>s` / `<C-w>v` / `<C-w>S` / `<C-w>V` - open entry in a split
+        -- - `gs` / `gv` / `gS` / `gV` - open entry in a split (avoid overriding `<C-w>`)
         local show_dotfiles = true
         local filter_show = function()
           return true
@@ -398,10 +409,10 @@ return {
           local buf_id = args.data.buf_id
           vim.keymap.set('n', 'g.', toggle_dotfiles, { buffer = buf_id, desc = 'Toggle hidden files' })
           vim.keymap.set('n', 'gc', files_set_cwd, { buffer = buf_id, desc = 'Set cwd' })
-          map_split(buf_id, '<C-w>s', 'horizontal', false)
-          map_split(buf_id, '<C-w>v', 'vertical', false)
-          map_split(buf_id, '<C-w>S', 'horizontal', true)
-          map_split(buf_id, '<C-w>V', 'vertical', true)
+          map_split(buf_id, 'gs', 'horizontal', false)
+          map_split(buf_id, 'gv', 'vertical', false)
+          map_split(buf_id, 'gS', 'horizontal', true)
+          map_split(buf_id, 'gV', 'vertical', true)
         end, 'mini.files buffer mappings')
       end)
 
