@@ -43,6 +43,8 @@ vim.b[src_buf].md_float_preview_state = state
 local aug = vim.api.nvim_create_augroup('md-float-preview-' .. src_buf, { clear = true })
 local ns = vim.api.nvim_create_namespace('md-float-preview-cursor-' .. src_buf)
 local saved_edit_opts = nil
+local wrap_limit = nil
+local enforcing_wrap = false
 
 local function valid_win(win)
   return win and vim.api.nvim_win_is_valid(win)
@@ -65,21 +67,106 @@ local function source_edit_win()
   return nil
 end
 
+local function preview_left_col()
+  if not valid_win(state.win) then return nil end
+  local ok, cfg = pcall(vim.api.nvim_win_get_config, state.win)
+  if not ok or type(cfg) ~= 'table' then return nil end
+  local c = cfg.col
+  if type(c) == 'number' then return c end
+  if type(c) == 'table' then return c[false] or c[1] end
+  return nil
+end
+
 local function compute_edit_width(preview_col)
   local src_win = source_edit_win()
+  local pcol = preview_col or preview_left_col()
   if not src_win then
-    return math.max(20, (preview_col or (vim.o.columns - 40)) - 4)
+    return math.max(20, (pcol or (vim.o.columns - 40)) - 4)
   end
   local win_pos = vim.api.nvim_win_get_position(src_win) -- {row, col} in editor
   local win_width = vim.api.nvim_win_get_width(src_win)
   local info = vim.fn.getwininfo(src_win)[1] or {}
   local textoff = info.textoff or 0
   local available = win_width - textoff - 2
-  if preview_col then
-    local overlap = math.max(0, (win_pos[2] + win_width) - preview_col)
+  if pcol then
+    local overlap = math.max(0, (win_pos[2] + win_width) - pcol)
     available = win_width - textoff - overlap - 2
   end
   return math.max(20, available)
+end
+
+local function in_fenced_code(line_nr)
+  -- Best-effort: treat lines inside ``` fences as code (skip hard-wrap guard).
+  local ok, lines = pcall(vim.api.nvim_buf_get_lines, src_buf, 0, line_nr, false)
+  if not ok then return false end
+  local fence = false
+  for _, l in ipairs(lines) do
+    if l:match('^%s*```') or l:match('^%s*~~~') then
+      fence = not fence
+    end
+  end
+  return fence
+end
+
+local function enforce_wrap_guard()
+  if enforcing_wrap or not valid_win(state.win) or not valid_buf(src_buf) then return end
+  if not wrap_limit or wrap_limit < 20 then return end
+  local mode = vim.api.nvim_get_mode().mode
+  if not mode:match('^i') and not mode:match('^R') then return end
+  local src_win = source_edit_win()
+  if not src_win or vim.api.nvim_get_current_win() ~= src_win then return end
+
+  local ok_cur, cur = pcall(vim.api.nvim_win_get_cursor, src_win)
+  if not ok_cur then return end
+  local row, col = cur[1], cur[2] -- 1-based row, 0-based byte col
+  local line = vim.api.nvim_buf_get_lines(src_buf, row - 1, row, false)[1] or ''
+  if #line == 0 then return end
+  if in_fenced_code(row) then return end
+
+  local ok_vc, vcol = pcall(vim.fn.virtcol, { row, col + 1 })
+  if not ok_vc then return end
+  if vcol <= wrap_limit + 1 then return end
+
+  -- Find last whitespace break point at or before limit (display columns).
+  local break_byte = nil
+  local i = 1
+  local disp = 0
+  while i <= #line do
+    local chlen = 1
+    local b = line:byte(i)
+    if b then
+      if b >= 240 then chlen = 4 elseif b >= 224 then chlen = 3 elseif b >= 192 then chlen = 2 end
+    end
+    local ch = line:sub(i, i + chlen - 1)
+    local w = vim.fn.strdisplaywidth(ch)
+    if disp + w > wrap_limit then break end
+    disp = disp + w
+    local next_i = i + chlen
+    if ch:match('%s') and next_i - 1 < col then
+      break_byte = i -- byte index (1-based) of whitespace char
+    end
+    i = next_i
+  end
+  if not break_byte then return end
+  -- avoid breaking too early or in indentation-only area
+  local prefix = line:sub(1, break_byte - 1)
+  if prefix:match('^%s*$') then return end
+
+  enforcing_wrap = true
+  local ok_mod = pcall(function()
+    local before = line:sub(1, break_byte - 1):gsub('%s+$', '')
+    local after = line:sub(break_byte):gsub('^%s+', '')
+    vim.api.nvim_buf_set_lines(src_buf, row - 1, row, false, { before, after })
+    local new_row = row + 1
+    local new_col = math.min(col - break_byte, #after)
+    if new_col < 0 then new_col = #after end
+    pcall(vim.api.nvim_win_set_cursor, src_win, { new_row, new_col })
+  end)
+  enforcing_wrap = false
+  if ok_mod then
+    -- keep preview/text state in sync
+    pcall(sync_preview)
+  end
 end
 
 local function apply_edit_wrap(preview_col)
@@ -91,6 +178,7 @@ local function apply_edit_wrap(preview_col)
     }
   end
   local tw = compute_edit_width(preview_col)
+  wrap_limit = tw
   vim.bo[src_buf].textwidth = tw
   local fo = vim.bo[src_buf].formatoptions
   -- Ensure auto-wrap while typing; keep 'l' off so long lines can be wrapped.
@@ -106,6 +194,7 @@ local function restore_edit_wrap()
     vim.bo[src_buf].formatoptions = saved_edit_opts.formatoptions
   end
   saved_edit_opts = nil
+  wrap_limit = nil
 end
 
 local function set_source_rendering(enabled)
@@ -280,6 +369,9 @@ vim.api.nvim_create_autocmd({ 'TextChangedI', 'TextChanged', 'TextChangedP' }, {
   buffer = src_buf,
   callback = function()
     if valid_win(state.win) and valid_buf(state.buf) then
+      if not enforcing_wrap then
+        enforce_wrap_guard()
+      end
       vim.schedule(sync_preview)
     end
   end,
@@ -295,4 +387,16 @@ vim.api.nvim_create_autocmd({ 'CursorMovedI', 'CursorMoved' }, {
     end
   end,
   desc = 'Sync floating markdown preview cursor position',
+})
+
+-- when preview is active and layout changes, recompute wrap boundary
+vim.api.nvim_create_autocmd({ 'VimResized', 'WinResized' }, {
+  group = aug,
+  callback = function()
+    if valid_win(state.win) and valid_buf(src_buf) then
+      apply_edit_wrap(preview_left_col())
+      vim.schedule(sync_preview)
+    end
+  end,
+  desc = 'Recompute markdown preview wrap boundary on resize',
 })
