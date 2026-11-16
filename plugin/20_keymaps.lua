@@ -51,6 +51,7 @@ nmap(']p', '<Cmd>exe "iput "  . v:register<CR>', 'Paste Below')
 -- Add an entry if you create a new group.
 Config.leader_group_clues = {
   { mode = 'n', keys = '<Leader>b', desc = '+Buffer' },
+  { mode = 'n', keys = '<Leader>c', desc = '+Code' },
   { mode = 'n', keys = '<Leader>e', desc = '+Explore/Edit' },
   { mode = 'n', keys = '<Leader>f', desc = '+Find' },
   { mode = 'n', keys = '<Leader>g', desc = '+Git' },
@@ -60,9 +61,10 @@ Config.leader_group_clues = {
   { mode = 'n', keys = '<Leader>q', desc = '+Quit' },
   { mode = 'n', keys = '<Leader>s', desc = '+Session' },
   { mode = 'n', keys = '<Leader>t', desc = '+Terminal/Config' },
-  { mode = 'n', keys = '<Leader>u', desc = '+Utility' },
+  { mode = 'n', keys = '<Leader>u', desc = '+UI/Utility' },
   { mode = 'n', keys = '<Leader>v', desc = '+Visits' },
 
+  { mode = 'x', keys = '<Leader>c', desc = '+Code' },
   { mode = 'x', keys = '<Leader>g', desc = '+Git' },
   { mode = 'x', keys = '<Leader>l', desc = '+Language' },
 }
@@ -564,6 +566,39 @@ end, { desc = 'Toggle autoformat (buffer)' })
 
 -- (the floating-terminal mappings live in the "Floating terminals" section
 -- below; this keeps a single upvalue-based implementation)
+
+-- LazyVim-style Code (<leader>c) and LSP/UI toggle mappings ==================
+-- Aliases aligned with common LazyVim defaults for LSP and toggles.
+nmap_leader('ca', '<Cmd>lua vim.lsp.buf.code_action()<CR>', 'Code action')
+xmap_leader('ca', '<Cmd>lua vim.lsp.buf.code_action()<CR>', 'Code action')
+nmap_leader('cd', '<Cmd>lua vim.diagnostic.open_float()<CR>', 'Line diagnostics')
+nmap_leader('cf', '<Cmd>lua require("conform").format()<CR>', 'Format')
+xmap_leader('cf', '<Cmd>lua require("conform").format()<CR>', 'Format selection')
+nmap_leader('cl', '<Cmd>LspInfo<CR>', 'LSP info')
+nmap_leader('cr', inc_rename, 'Rename')
+nmap_leader('cR', '<Cmd>lua vim.lsp.buf.rename()<CR>', 'Rename (LSP)')
+nmap_leader('cI', '<Cmd>checkhealth vim.lsp<CR>', 'LSP health')
+nmap_leader('cc', '<Cmd>lua vim.lsp.codelens.run()<CR>', 'Run codelens')
+nmap_leader('cC', '<Cmd>lua vim.lsp.codelens.refresh()<CR>', 'Refresh codelens')
+
+-- Toggle inlay hints (LazyVim: <leader>uh)
+map('n', '<Leader>uh', function()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local enabled = vim.lsp.inlay_hint.is_enabled and vim.lsp.inlay_hint.is_enabled({ bufnr = bufnr })
+  if enabled == nil then
+    -- older API shape fallback
+    enabled = pcall(function() return vim.lsp.inlay_hint.is_enabled(bufnr) end) and vim.lsp.inlay_hint.is_enabled(bufnr)
+  end
+  vim.lsp.inlay_hint.enable(not enabled, { bufnr = bufnr })
+  vim.notify('Inlay hints (buffer): ' .. ((not enabled) and 'on' or 'off'))
+end, { desc = 'Toggle inlay hints (buffer)' })
+
+map('n', '<Leader>uH', function()
+  local enabled = vim.lsp.inlay_hint.is_enabled and vim.lsp.inlay_hint.is_enabled()
+  vim.lsp.inlay_hint.enable(not enabled)
+  vim.notify('Inlay hints (global): ' .. ((not enabled) and 'on' or 'off'))
+end, { desc = 'Toggle inlay hints (global)' })
+
 
 -- ╭──────────────────────────────────────────────────────────╮
 -- │ General                                                │
