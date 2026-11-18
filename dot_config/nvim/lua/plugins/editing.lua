@@ -76,7 +76,9 @@ return {
           if vim.g.disable_autoformat or vim.b[bufnr].disable_autoformat then
             return
           end
-          return { timeout_ms = 500, lsp_format = 'fallback' }
+          -- `gray fmt` type-checks before rewriting, so leave room for the
+          -- compiler on large files or a cold start.
+          return { timeout_ms = 5000, lsp_format = 'fallback' }
         end,
         -- Map of filetype to formatters
         -- Make sure that necessary CLI tool is available
@@ -90,11 +92,14 @@ return {
           sh = { 'shfmt' },
           bash = { 'shfmt' },
           fish = { 'fish_indent' },
-          -- `wgsl`, `nix`, `python`, `css` and `html` have no formatter binary
-          -- installed, so they are deliberately NOT listed here: a missing entry
-          -- makes conform report "no formatters available" on every save. They
-          -- format through the attached LSP instead (`lsp_format = 'fallback'`
-          -- above), and `wgsl` is validated on write by `naga` (see the
+          odin = { 'odinfmt' },
+          -- `gray`, `wgsl`, `nix`, `python`, `css` and `html` have no dedicated
+          -- formatter binary configured, so they are deliberately NOT listed
+          -- here: a missing entry makes conform use the attached LSP instead
+          -- (`lsp_format = 'fallback'` above). GrayLS implements
+          -- `textDocument/formatting` by running `gray fmt` on a temporary
+          -- copy of the buffer, which is why Gray formatting needs no custom
+          -- conform formatter. `wgsl` is validated on write by `naga` (see the
           -- 'WGSL validation' section in 'lua/options.lua').
         },
       })

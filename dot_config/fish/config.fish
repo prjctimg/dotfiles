@@ -380,7 +380,7 @@ set -x EDITOR nvim
 set -x MYVIMRC "$XDG_CONFIG_HOME/nvim/"
 set -x TERMRC "$XDG_CONFIG_HOME/ghostty/config"
 set -x GHOSTTY_SHELL_INTEGRATION_NO_SUDO 0
-set -x PATH //home/prjctimg/.bun/bin:/usr/local/sbin:/usr/local/bin:/usr/local/games:/usr/sbin:/usr/bin:/usr/games:/sbin:/bin:/home/prjctimg/go/bin:/usr/bin/go/bin:/usr/local/sbin:/usr/local/bin:/usr/local/games:/usr/sbin:/usr/bin:/usr/games:/sbin:/bin:/home/prjctimg/.x-cmd.root/bin:/home/prjctimg/.cargo/bin/:/usr/local/go/bin/:/home/prjctimg/.juliaup/bin/:/home/prjctimg/.local/share/nvim/mason/bin/:/home/prjctimg/.zvm/bin:/home/prjctimg/.zvm/self:/home/prjctimg/.opencode/bin:/home/prjctimg/.local/pipx/venvs
+set -x PATH $HOME/.bun/bin:/usr/local/sbin:/usr/local/bin:/usr/local/games:/usr/sbin:/usr/bin:/usr/games:/sbin:/bin:$HOME/go/bin:/usr/bin/go/bin:/usr/local/sbin:/usr/local/bin:/usr/local/games:/usr/sbin:/usr/bin:/usr/games:/sbin:/bin:$HOME/.x-cmd.root/bin:$HOME/.cargo/bin/:/usr/local/go/bin/:$HOME/.juliaup/bin/:$HOME/.local/share/nvim/mason/bin/:$HOME/.zvm/bin:$HOME/.zvm/self:$HOME/.opencode/bin:$HOME/.local/pipx/venvs
 set -x SHELL fish
 set -x SUDO_EDITOR $(which nvim)
 set -x OPENSSL_DIR $(which openssl)
@@ -394,4 +394,4 @@ eval (starship init fish)
 ssh_agent
 
 # Created by `pipx` on 2026-04-02 06:44:32
-set PATH $PATH /home/prjctimg/.local/bin
+set PATH $PATH $HOME/.local/bin

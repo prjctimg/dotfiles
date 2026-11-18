@@ -5,6 +5,22 @@ set -e
 
 has() { command -v "$1" >/dev/null 2>&1; }
 
+if [ "$(id -u)" -eq 0 ]; then
+  SUDO=""
+elif has sudo; then
+  SUDO="sudo"
+else
+  SUDO=""
+fi
+
+run_root() {
+  if [ -n "$SUDO" ]; then
+    $SUDO "$@"
+  else
+    "$@"
+  fi
+}
+
 gh_latest_tag() {
   curl -sI -o /dev/null -w '%{redirect_url}' "https://github.com/$1/$2/releases/latest" |
     sed 's|.*/tag/||; s|^v||'
@@ -13,14 +29,14 @@ gh_latest_tag() {
 install_pkg() {
   case "$PM" in
   apt)
-    sudo apt-get update -qq
-    sudo apt-get install -y -qq "$@"
+    run_root apt-get update -qq
+    run_root apt-get install -y -qq "$@"
     ;;
-  apk) sudo apk add --no-cache "$@" ;;
+  apk) run_root apk add --no-cache "$@" ;;
   brew) brew install "$@" ;;
-  dnf) sudo dnf install -y "$@" ;;
-  pacman) sudo pacman -S --noconfirm "$@" ;;
-  zypper) sudo zypper install -y "$@" ;;
+  dnf) run_root dnf install -y "$@" ;;
+  pacman) run_root pacman -S --noconfirm "$@" ;;
+  zypper) run_root zypper install -y "$@" ;;
   esac
 }
 
@@ -65,16 +81,26 @@ LAZY_ARCH="$BIN_ARCH"
 install_pkg git curl ca-certificates jq ripgrep fzf lua5.4 pv unzip lolcat
 
 case "$PM" in
-apt) install_pkg nala neofetch ;;
+apt)
+  install_pkg nala neofetch 2>/dev/null || run_root apt-get install -y -qq nala 2>/dev/null || true
+  run_root apt-get install -y -qq neofetch 2>/dev/null || true
+  ;;
 esac
 
-# ─── Neovim (appimage) ──────────────────────────────────────────────
+# ─── Neovim ─────────────────────────────────────────────────────────
 
 if ! has nvim; then
-  curl -fsSL https://github.com/neovim/neovim/releases/latest/download/nvim-linux64.tar.gz \
-    -o /tmp/nvim.tar.gz
-  sudo tar xf /tmp/nvim.tar.gz -C /opt
-  sudo ln -sf /opt/nvim-linux64/bin/nvim /usr/local/bin/nvim
+  case "$ARCH" in
+    x86_64|amd64) NVIM_ARCH="x86_64" ;;
+    aarch64|arm64) NVIM_ARCH="arm64" ;;
+    *) NVIM_ARCH="$ARCH" ;;
+  esac
+  NVIM_PKG="nvim-linux-${NVIM_ARCH}"
+  NVIM_URL="https://github.com/neovim/neovim/releases/latest/download/${NVIM_PKG}.tar.gz"
+  curl -fsSL "$NVIM_URL" -o /tmp/nvim.tar.gz
+  run_root rm -rf "/opt/${NVIM_PKG}"
+  run_root tar xf /tmp/nvim.tar.gz -C /opt
+  run_root ln -sf "/opt/${NVIM_PKG}/bin/nvim" /usr/local/bin/nvim
   rm -f /tmp/nvim.tar.gz
 fi
 
@@ -85,7 +111,7 @@ if ! has btop; then
   curl -fsSL "https://github.com/aristocratos/btop/releases/latest/download/btop-${BIN_ARCH}-linux-musl.tbz" \
     -o /tmp/btop.tbz
   tmpd=$(mktemp -d)
-  cd "$tmpd" && tar xf /tmp/btop.tbz && sudo cp btop/bin/btop /usr/local/bin/ && rm -rf "$tmpd"
+  cd "$tmpd" && tar xf /tmp/btop.tbz && run_root cp btop/bin/btop /usr/local/bin/ && rm -rf "$tmpd"
   rm -f /tmp/btop.tbz
 fi
 
@@ -95,7 +121,7 @@ if ! has lazygit; then
   tag=$(gh_latest_tag jesseduffield lazygit)
   curl -fsSL "https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_${tag}_Linux_${LAZY_ARCH}.tar.gz" \
     -o /tmp/lazygit.tar.gz
-  sudo tar xf /tmp/lazygit.tar.gz -C /usr/local/bin lazygit
+  run_root tar xf /tmp/lazygit.tar.gz -C /usr/local/bin lazygit
   rm -f /tmp/lazygit.tar.gz
 fi
 
@@ -105,7 +131,7 @@ if ! has lsd; then
   tag=$(gh_latest_tag lsd-rs lsd)
   curl -fsSL "https://github.com/lsd-rs/lsd/releases/latest/download/lsd-${tag}-${BIN_ARCH}-unknown-linux-musl.tar.gz" \
     -o /tmp/lsd.tar.gz
-  sudo tar xf /tmp/lsd.tar.gz -C /usr/local/bin --strip-components=1 "lsd-${tag}-${BIN_ARCH}-unknown-linux-musl/lsd"
+  run_root tar xf /tmp/lsd.tar.gz -C /usr/local/bin --strip-components=1 "lsd-${tag}-${BIN_ARCH}-unknown-linux-musl/lsd"
   rm -f /tmp/lsd.tar.gz
 fi
 
@@ -115,7 +141,7 @@ if ! has carapace; then
   tag=$(gh_latest_tag carapace-sh carapace-bin)
   curl -fsSL "https://github.com/carapace-sh/carapace-bin/releases/latest/download/carapace_${tag}_linux_${GH_ARCH}.tar.gz" \
     -o /tmp/carapace.tar.gz
-  sudo tar xf /tmp/carapace.tar.gz -C /usr/local/bin carapace
+  run_root tar xf /tmp/carapace.tar.gz -C /usr/local/bin carapace
   rm -f /tmp/carapace.tar.gz
 fi
 
@@ -131,7 +157,7 @@ if ! has hx; then
   tag=$(gh_latest_tag helix-editor helix)
   curl -fsSL "https://github.com/helix-editor/helix/releases/latest/download/helix-${tag}-${BIN_ARCH}-linux.tar.gz" \
     -o /tmp/helix.tar.gz
-  sudo tar xf /tmp/helix.tar.gz -C /usr/local/bin --strip-components=1 "helix-${tag}-${BIN_ARCH}-linux/hx"
+  run_root tar xf /tmp/helix.tar.gz -C /usr/local/bin --strip-components=1 "helix-${tag}-${BIN_ARCH}-linux/hx"
   rm -f /tmp/helix.tar.gz
 fi
 
@@ -144,7 +170,7 @@ if ! has gh; then
     tag=$(gh_latest_tag cli cli)
     curl -fsSL "https://github.com/cli/cli/releases/latest/download/gh_${tag}_linux_${GH_ARCH}.tar.gz" \
       -o /tmp/gh.tar.gz
-    sudo tar xf /tmp/gh.tar.gz -C /usr/local/bin --strip-components=2 "gh_${tag}_linux_${GH_ARCH}/bin/gh"
+    run_root tar xf /tmp/gh.tar.gz -C /usr/local/bin --strip-components=2 "gh_${tag}_linux_${GH_ARCH}/bin/gh"
     rm -f /tmp/gh.tar.gz
   fi
 fi
@@ -166,7 +192,7 @@ if ! has go; then
   else
     tag=$(curl -fsSL https://go.dev/VERSION?m=text | head -1)
     curl -fsSL "https://go.dev/dl/${tag}.linux-${GH_ARCH}.tar.gz" -o /tmp/go.tar.gz
-    sudo tar xf /tmp/go.tar.gz -C /usr/local
+    run_root tar xf /tmp/go.tar.gz -C /usr/local
     rm -f /tmp/go.tar.gz
   fi
 fi
@@ -177,7 +203,7 @@ if ! has zvm; then
   tag=$(gh_latest_tag tristanisham zvm)
   curl -fsSL "https://github.com/tristanisham/zvm/releases/latest/download/zvm-linux-${GH_ARCH}.tar.gz" \
     -o /tmp/zvm.tar.gz
-  sudo tar xf /tmp/zvm.tar.gz -C /usr/local/bin
+  run_root tar xf /tmp/zvm.tar.gz -C /usr/local/bin
   rm -f /tmp/zvm.tar.gz
 fi
 

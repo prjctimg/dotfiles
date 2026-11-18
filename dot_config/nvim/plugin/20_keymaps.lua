@@ -51,6 +51,7 @@ nmap(']p', '<Cmd>exe "iput "  . v:register<CR>', 'Paste Below')
 -- Add an entry if you create a new group.
 Config.leader_group_clues = {
   { mode = 'n', keys = '<Leader>b', desc = '+Buffer' },
+  { mode = 'n', keys = '<Leader>c', desc = '+Code' },
   { mode = 'n', keys = '<Leader>e', desc = '+Explore/Edit' },
   { mode = 'n', keys = '<Leader>f', desc = '+Find' },
   { mode = 'n', keys = '<Leader>g', desc = '+Git' },
@@ -60,9 +61,10 @@ Config.leader_group_clues = {
   { mode = 'n', keys = '<Leader>q', desc = '+Quit' },
   { mode = 'n', keys = '<Leader>s', desc = '+Session' },
   { mode = 'n', keys = '<Leader>t', desc = '+Terminal/Config' },
-  { mode = 'n', keys = '<Leader>u', desc = '+Utility' },
+  { mode = 'n', keys = '<Leader>u', desc = '+UI/Utility' },
   { mode = 'n', keys = '<Leader>v', desc = '+Visits' },
 
+  { mode = 'x', keys = '<Leader>c', desc = '+Code' },
   { mode = 'x', keys = '<Leader>g', desc = '+Git' },
   { mode = 'x', keys = '<Leader>l', desc = '+Language' },
 }
@@ -198,22 +200,64 @@ xmap_leader('gs', '<Cmd>lua MiniGit.show_at_cursor()<CR>', 'Show at selection')
 -- LSP mappings (like `:h gra` and others). This is needed because `gr` is mapped
 -- by an "replace" operator in 'mini.operators' (which is more commonly used).
 
--- Rename through 'inc-rename.nvim' (setup in 'lua/plugins/editing.lua'): it
--- previews the rename in the command-preview window as the new name is typed, so
--- a rename spanning many files can be reviewed before it is applied instead of
--- being committed blind. `:IncRename` is a no-op when no attached server offers
--- `textDocument/rename`, so fall back to the plain LSP rename in that case --
--- that keeps the key useful for servers that implement `rename` without
--- `prepareRename`, and avoids a dead key where there is no server at all.
-local inc_rename = function()
-  for _, client in ipairs(vim.lsp.get_clients({ bufnr = 0 })) do
-    if client:supports_method('textDocument/rename') then
-      vim.cmd('IncRename')
-      return
-    end
+-- Floating rename prompt for symbol under cursor.
+local floating_rename = function()
+  local clients = vim.lsp.get_clients({ bufnr = 0, method = 'textDocument/rename' })
+  if #clients == 0 then
+    vim.notify('No LSP client with rename support attached', vim.log.levels.WARN)
+    return
   end
-  vim.lsp.buf.rename()
+  local cword = vim.fn.expand('<cword>')
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { cword })
+  vim.bo[buf].buftype = 'nofile'
+  vim.bo[buf].bufhidden = 'wipe'
+  vim.bo[buf].modifiable = true
+  vim.bo[buf].filetype = 'prompt'
+
+  local width = math.max(20, math.min(60, #cword + 14))
+  local win = vim.api.nvim_open_win(buf, true, {
+    relative = 'cursor',
+    row = 1,
+    col = 0,
+    width = width,
+    height = 1,
+    style = 'minimal',
+    border = 'rounded',
+    title = ' 󰑕 Rename ',
+    title_pos = 'center',
+  })
+  vim.wo[win].winhighlight = 'Normal:NormalFloat,FloatBorder:FloatBorder'
+  vim.wo[win].wrap = false
+  vim.wo[win].cursorline = false
+
+  local closed = false
+  local function close(cancel)
+    if closed then return end
+    closed = true
+    if vim.api.nvim_win_is_valid(win) then pcall(vim.api.nvim_win_close, win, true) end
+    if vim.api.nvim_buf_is_valid(buf) then pcall(vim.api.nvim_buf_delete, buf, { force = true }) end
+    if cancel then vim.cmd('stopinsert') end
+  end
+
+  local function submit()
+    if not vim.api.nvim_buf_is_valid(buf) then return end
+    local new_name = (vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1] or ''):gsub('^%s+', ''):gsub('%s+$', '')
+    close(false)
+    vim.cmd('stopinsert')
+    if new_name == '' or new_name == cword then return end
+    vim.schedule(function()
+      vim.lsp.buf.rename(new_name)
+    end)
+  end
+
+  vim.keymap.set({ 'n', 'i' }, '<CR>', submit, { buffer = buf, nowait = true, silent = true })
+  vim.keymap.set({ 'n', 'i' }, '<Esc>', function() close(true) end, { buffer = buf, nowait = true, silent = true })
+  vim.keymap.set('n', 'q', function() close(true) end, { buffer = buf, nowait = true, silent = true })
+  vim.cmd('startinsert!')
 end
+
+local inc_rename = floating_rename
 
 nmap_leader('la', '<Cmd>lua vim.lsp.buf.code_action()<CR>',     'Actions')
 nmap_leader('ld', '<Cmd>lua vim.diagnostic.open_float()<CR>',   'Diagnostic popup')
@@ -536,9 +580,6 @@ end, { desc = 'Colorschemes' })
 -- │ LazyVim-style window/terminal mappings                 │
 -- ╰──────────────────────────────────────────────────────────╯
 
--- Undo/Redo with Ctrl+Z/Y (LazyVim style)
-map('n', '<C-z>', '<cmd>undo<CR>', { desc = 'Undo' })
-map('n', '<C-y>', '<cmd>redo<CR>', { desc = 'Redo' })
 
 -- LazyVim-parity additions ------------------------------------------------
 map('n', '<Leader>qq', '<Cmd>qa<CR>', { desc = 'Quit all' })
@@ -568,12 +609,46 @@ end, { desc = 'Toggle autoformat (buffer)' })
 -- (the floating-terminal mappings live in the "Floating terminals" section
 -- below; this keeps a single upvalue-based implementation)
 
+-- LazyVim-style Code (<leader>c) and LSP/UI toggle mappings ==================
+-- Aliases aligned with common LazyVim defaults for LSP and toggles.
+nmap_leader('ca', '<Cmd>lua vim.lsp.buf.code_action()<CR>', 'Code action')
+xmap_leader('ca', '<Cmd>lua vim.lsp.buf.code_action()<CR>', 'Code action')
+nmap_leader('cd', '<Cmd>lua vim.diagnostic.open_float()<CR>', 'Line diagnostics')
+nmap_leader('cf', '<Cmd>lua require("conform").format()<CR>', 'Format')
+xmap_leader('cf', '<Cmd>lua require("conform").format()<CR>', 'Format selection')
+nmap_leader('cl', '<Cmd>LspInfo<CR>', 'LSP info')
+nmap_leader('cr', inc_rename, 'Rename')
+nmap_leader('cR', '<Cmd>lua vim.lsp.buf.rename()<CR>', 'Rename (LSP)')
+nmap_leader('cI', '<Cmd>checkhealth vim.lsp<CR>', 'LSP health')
+nmap_leader('cc', '<Cmd>lua vim.lsp.codelens.run()<CR>', 'Run codelens')
+nmap_leader('cC', '<Cmd>lua vim.lsp.codelens.refresh()<CR>', 'Refresh codelens')
+
+-- Toggle inlay hints (LazyVim: <leader>uh)
+map('n', '<Leader>uh', function()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local enabled = vim.lsp.inlay_hint.is_enabled and vim.lsp.inlay_hint.is_enabled({ bufnr = bufnr })
+  if enabled == nil then
+    -- older API shape fallback
+    enabled = pcall(function() return vim.lsp.inlay_hint.is_enabled(bufnr) end) and vim.lsp.inlay_hint.is_enabled(bufnr)
+  end
+  vim.lsp.inlay_hint.enable(not enabled, { bufnr = bufnr })
+  vim.notify('Inlay hints (buffer): ' .. ((not enabled) and 'on' or 'off'))
+end, { desc = 'Toggle inlay hints (buffer)' })
+
+map('n', '<Leader>uH', function()
+  local enabled = vim.lsp.inlay_hint.is_enabled and vim.lsp.inlay_hint.is_enabled()
+  vim.lsp.inlay_hint.enable(not enabled)
+  vim.notify('Inlay hints (global): ' .. ((not enabled) and 'on' or 'off'))
+end, { desc = 'Toggle inlay hints (global)' })
+
+
 -- ╭──────────────────────────────────────────────────────────╮
 -- │ General                                                │
 -- ╰──────────────────────────────────────────────────────────╯
 
 -- Enter Command-line mode (was Normal mode in the previous config)
 map('n', '<C-;>', ':')
+map({ 'n', 'x' }, ';', ':', { desc = 'Command line' })
 
 -- LSP actions
 map({ 'n', 'i' }, '<A-\\>', function()
@@ -645,19 +720,10 @@ map({ 'n', 'i', 'v', 't', 'x', 'o' }, '<S-Left>', v_mv('h'))
 map({ 'n', 'i', 'v', 't', 'x', 'o' }, '<S-Up>', v_mv('k'))
 map({ 'n', 'i', 'v', 't', 'x', 'o' }, '<S-Down>', v_mv('j'))
 map({ 'n', 'i', 'v', 't', 'x', 'o' }, '<S-Right>', v_mv('l'))
-map({ 'n', 'i', 'v' }, '<C-a>', '<ESC>gg0v$G$')
 map({ 'n', 'i', 'v' }, '<ESC>', '<ESC><ESC>')
 map({ 'i', 'n', 'v', 'x', 'o' }, '<C-Tab>', '<cmd>bnext<CR>')
 map({ 'i', 'n', 'v', 'x', 'o' }, '<S-Tab>', '<cmd>bprevious<CR>')
 
--- Buffer management
-map({ 'n', 'i' }, '<C-q>', function()
-  if vim.api.nvim_buf_is_valid(0) then
-    vim.cmd('bd')
-  else
-    vim.cmd('close')
-  end
-end)
 
 -- Floating terminals (was 'Snacks.terminal.toggle')
 --
@@ -799,9 +865,6 @@ end) -- lsp_workspace_symbols
 map({ 'n', 'i' }, '<A-y>', function()
   vim.cmd('YankyRingHistory')
 end) -- yank history
--- yanky ring cycling (Normal mode only so 'mini.completion' keeps <C-p>/<C-n>)
-map('n', '<C-p>', '<Plug>(YankyCycleForward)')
-map('n', '<C-n>', '<Plug>(YankyCycleBackward)')
 map({ 'n', 'i' }, '<A-h>', function()
   vim.cmd('Pick help')
 end) -- help
