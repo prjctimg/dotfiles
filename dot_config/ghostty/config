@@ -13,6 +13,21 @@ bell-features=audio
 theme = Catppuccin Frappe
 fullscreen = false
 keybind = ctrl+shift+tab=unbind
+# Pane navigation with ctrl+arrow keys
+keybind = ctrl+arrow_left=goto_split:left
+keybind = ctrl+arrow_right=goto_split:right
+keybind = ctrl+arrow_up=goto_split:up
+keybind = ctrl+arrow_down=goto_split:down
+# Free alt+1..alt+9 for nvim
+keybind = alt+1=unbind
+keybind = alt+2=unbind
+keybind = alt+3=unbind
+keybind = alt+4=unbind
+keybind = alt+5=unbind
+keybind = alt+6=unbind
+keybind = alt+7=unbind
+keybind = alt+8=unbind
+keybind = alt+9=unbind
 # custom-shader = ~/.config/ghostty/shaders/gears-and-belts.glsl
 # custom-shader = ~/.config/ghostty/shaders/cursor_blaze.glsl
 # background-image = ~/.config/ghostty/static/dark.jpg

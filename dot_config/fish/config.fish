@@ -1,12 +1,17 @@
 #! /usr/bin/env fish
 
+# Some sessions (greeters, containers, non-login TTYs) do not export these.
+set -q XDG_CONFIG_HOME; or set -gx XDG_CONFIG_HOME $HOME/.config
+set -q XDG_DATA_HOME; or set -gx XDG_DATA_HOME $HOME/.local/share
+
+# options
+fish_default_key_bindings
+
 bind \ea opencode
 bind \ee nvim
 bind \et btop
 bind \eh "invoke_bash 'x --help'"
 bind \e/ fzf
-# options
-fish_default_key_bindings
 function _is_selecting
     set _sel_start (commandline -B)
     set _sel_end (commandline -E)
@@ -196,6 +201,7 @@ function run --description="Run a script. It will pick the program based on the 
 
     set file $argv[1]
     set ext (echo $file | awk -F '.' '{print $NF}')
+    set -l rest $argv[2..-1]
 
 
     if test "$ext" = "$file"
@@ -203,31 +209,31 @@ function run --description="Run a script. It will pick the program based on the 
             echo "File not executable."
             chmod +x $file
             echo "File made executable. Running it..."
-            $file
+            $file $rest
         else
-            $file
+            $file $rest
 
         end
     else
         switch $ext
             case lua
 
-                lua $file
+                lua $file $rest
 
             case js ts mts mjs cjs
 
 
-                bun $file
+                bun $file $rest
 
 
             case sh
-                bash $file
+                bash $file $rest
             case fish
 
-                fish $argv $file
+                fish $file $rest
             case zig
 
-                zig run $file $argv
+                zig run $file -- $rest
         end
     end
 end
@@ -251,7 +257,7 @@ end
 function so
 
     # @fish-lsp-disable-next-line 1004
-    source /home/$(whoami)/.config/fish/config.fish
+    source $HOME/.config/fish/config.fish
 end
 
 function invoke_bash
@@ -261,16 +267,21 @@ end
 
 function rm
 
-    command sudo rm -rfv $argv
+    if command -q sudo
+        command sudo rm -rfv $argv
+    else
+        command rm -rfv $argv
+    end
 
 end
 
 function cdd --description="View directories as you change into them"
-    if not has_args $argv
-        cd $argv
+    if has_args $argv
+        cd $HOME
+    else if command -q x-cmd
+        invoke_bash "x cd $argv"
     else
-        echo 'Change to path📁 directory'
-        invoke_bash " x cd $argv"
+        cd $argv
     end
 end
 
@@ -303,7 +314,11 @@ function to --description="Alias for the touch command"
 end
 
 function git
-    x git $argv
+    if command -q x-cmd
+        x git $argv
+    else
+        command git $argv
+    end
 end
 
 
@@ -313,8 +328,7 @@ end
 
 
 function mtrx
-    tr -c "[:digit:]" " " </dev/urandom | dd cbs=$COLUMNS conv=unblock | GREP_COLOR="1
-32" grep --color "[^ ]"
+    tr -c "[:digit:]" " " </dev/urandom | dd cbs=$COLUMNS conv=unblock | GREP_COLOR="132" grep --color "[^ ]"
 
 end
 
@@ -350,13 +364,21 @@ end
 
 
 function add-pkg --description="Add package(s) using Nala"
-    sudo nala install $argv
+    if command -q nala
+        if command -q sudo; command sudo nala install $argv; else; command nala install $argv; end
+    else
+        if command -q sudo; command sudo apt-get install -y $argv; else; command apt-get install -y $argv; end
+    end
 end
 
 
 function rm-pkg --description="Remove package(s) using Nala"
-    sudo nala remove $argv && sudo nala clean
-
+    if command -q nala
+        if command -q sudo; command sudo nala remove $argv; else; command nala remove $argv; end
+        if command -q sudo; command sudo nala clean; else; command nala clean; end
+    else
+        if command -q sudo; command sudo apt-get remove -y $argv; else; command apt-get remove -y $argv; end
+    end
 end
 
 function top
@@ -380,18 +402,25 @@ set -x EDITOR nvim
 set -x MYVIMRC "$XDG_CONFIG_HOME/nvim/"
 set -x TERMRC "$XDG_CONFIG_HOME/ghostty/config"
 set -x GHOSTTY_SHELL_INTEGRATION_NO_SUDO 0
-set -x PATH $HOME/.bun/bin:/usr/local/sbin:/usr/local/bin:/usr/local/games:/usr/sbin:/usr/bin:/usr/games:/sbin:/bin:$HOME/go/bin:/usr/bin/go/bin:/usr/local/sbin:/usr/local/bin:/usr/local/games:/usr/sbin:/usr/bin:/usr/games:/sbin:/bin:$HOME/.x-cmd.root/bin:$HOME/.cargo/bin/:/usr/local/go/bin/:$HOME/.juliaup/bin/:$HOME/.local/share/nvim/mason/bin/:$HOME/.zvm/bin:$HOME/.zvm/self:$HOME/.opencode/bin:$HOME/.local/pipx/venvs
+set -l _oldpath $PATH
+set -gx PATH $HOME/.bun/bin $HOME/.opencode/bin $HOME/.local/bin \
+    $HOME/go/bin $HOME/.local/share/nvim/mason/bin \
+    /usr/local/sbin /usr/local/bin /usr/sbin /usr/bin /sbin /bin
+# Keep other inherited entries, but de-duplicate and drop the Rust/Zig dirs we
+# no longer install.
+for _p in $_oldpath
+    string match -q '*/.cargo/bin' -- $_p; and continue
+    string match -q '*/.zvm/*' -- $_p; and continue
+    contains -- $_p $PATH; or set -a PATH $_p
+end
+set -e _p
+set -e _oldpath
 set -x SHELL fish
-set -x SUDO_EDITOR $(which nvim)
-set -x OPENSSL_DIR $(which openssl)
+set -x SUDO_EDITOR (command -s nvim)
+set -x OPENSSL_DIR (command -s openssl)
 
-carapace _carapace | source
-
-
-
-
-eval (starship init fish)
-ssh_agent
-
-# Created by `pipx` on 2026-04-02 06:44:32
-set PATH $PATH $HOME/.local/bin
+# Interactive-only integrations (keeps `fish -c ...` output clean).
+if status is-interactive
+    carapace _carapace | source
+    eval (starship init fish)
+end

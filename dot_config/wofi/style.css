@@ -1,0 +1,36 @@
+window {
+    background-color: rgba(30, 30, 46, 0.95);
+    border: 2px solid #89b4fa;
+    border-radius: 16px;
+    font-family: "JetBrains Mono", "DejaVu Sans", sans-serif;
+    font-size: 14px;
+}
+
+#input {
+    margin: 10px;
+    padding: 10px 14px;
+    border: none;
+    border-radius: 10px;
+    background-color: #313244;
+    color: #cdd6f4;
+}
+
+#entry {
+    padding: 8px 14px;
+    margin: 2px 10px;
+    border-radius: 8px;
+    color: #cdd6f4;
+}
+
+#entry:selected {
+    background-color: #89b4fa;
+    color: #1e1e2e;
+}
+
+#text {
+    color: inherit;
+}
+
+#img {
+    margin-right: 10px;
+}

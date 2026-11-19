@@ -7,3 +7,7 @@
 .config/ghostty/.git
 .config/nvim/.git
 .config/wezterm/.git
+
+# fish universal variables are machine-specific (they contain absolute paths,
+# e.g. /home/<user>/...), so let each machine generate its own.
+.config/fish/fish_variables

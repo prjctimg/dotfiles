@@ -1,0 +1,215 @@
+# ─────────────────────────────────────────────────────────────
+# Sway — Catppuccin Mocha, blurred wallpaper, ChromeOS-style keys
+# ─────────────────────────────────────────────────────────────
+#
+# Modifier map:
+#   Search/Everything key = Super (Mod4), same as ChromeOS.
+#   Ctrl+Alt+Arrow is intentionally UNBOUND so Ghostty can use it
+#   for pane navigation.
+#
+# ChromeOS equivalents implemented below:
+#   Alt+Tab / Alt+Shift+Tab      next / previous window
+#   Alt+[ / Alt+]                dock window left / right
+#   Alt+=                        maximize (fullscreen)
+#   Alt+-                        minimize (scratchpad)
+#   Super+L                      lock screen
+#   Ctrl+Shift+Q                 power menu (logout/reboot/shutdown)
+#   Super+1..9                   switch desk/workspace
+#   Super+Shift+1..9             move window to desk/workspace
+#   Super+[ / Super+]            previous / next desk
+#   Super+Shift+Q                power menu (alternate)
+#   Super+C                      screenshot (full screen)
+#   Super+X                      start/stop screen recording
+#   Print / Super+Shift+S        screenshot
+
+set $mod Mod4
+set $term ghostty
+set $menu wofi --show drun
+set $wallpaper /root/.config/sway/wallpaper.jpg
+set $scripts /root/.config/sway/scripts
+
+font pango:JetBrains Mono 10
+
+# ── Output ───────────────────────────────────────────────────
+xwayland enable
+output * bg $wallpaper fill #1e1e2e
+output * scale 1
+
+# ── Input ────────────────────────────────────────────────────
+input type:keyboard {
+    xkb_layout us
+}
+
+input type:touchpad {
+    tap enabled
+    natural_scroll enabled
+    dwt enabled
+}
+
+seat seat0 {
+    hide_cursor 1000
+}
+
+# ── Look & feel ──────────────────────────────────────────────
+default_border pixel 2
+default_floating_border pixel 2
+hide_edge_borders smart
+titlebar_border_thickness 0
+titlebar_padding 0
+
+gaps inner 8
+gaps outer 12
+smart_gaps on
+smart_borders on
+
+client.focused          #89b4fa #89b4fa #1e1e2e #89b4fa #89b4fa
+client.focused_inactive #313244 #313244 #a6adc8 #313244 #313244
+client.unfocused        #1e1e2e #1e1e2e #6c7086 #1e1e2e #1e1e2e
+client.urgent           #f38ba8 #f38ba8 #1e1e2e #f38ba8 #f38ba8
+client.placeholder      #1e1e2e #1e1e2e #cdd6f4 #1e1e2e #1e1e2e
+client.background       #1e1e2e
+
+# ── Autostart ────────────────────────────────────────────────
+# Puppy desktop integration (spot sockets, Xauthority, theming, autostart apps)
+exec --no-startup-id $scripts/desktop-setup.sh
+exec_always --no-startup-id $scripts/start-waybar.sh
+exec --no-startup-id mako
+exec --no-startup-id wl-paste --type text --watch cliphist store
+exec --no-startup-id wl-paste --type image --watch cliphist store
+exec --no-startup-id swayidle -w \
+    timeout 300 'swaylock -f -i /root/.config/sway/wallpaper.jpg --clock --indicator' \
+    timeout 600 'swaymsg "output * power off"' \
+    resume 'swaymsg "output * power on"' \
+    before-sleep 'swaylock -f -i /root/.config/sway/wallpaper.jpg --clock --indicator'
+
+# ── Applications ─────────────────────────────────────────────
+# Search opens the launcher on ChromeOS. A bare Super press cannot be
+# bound without also firing after every Super shortcut, so use the
+# closest reliable chords.
+bindsym $mod+d exec $menu
+bindsym $mod+space exec $menu
+bindsym $mod+Return exec $term
+bindsym $mod+grave exec wofi --show window
+bindsym $mod+Shift+v exec $scripts/clipboard.sh
+bindsym $mod+Escape exec swaylock -f -i $wallpaper --clock --indicator
+bindsym $mod+l exec swaylock -f -i $wallpaper --clock --indicator
+
+# ── Session ──────────────────────────────────────────────────
+bindsym $mod+Shift+c reload
+bindsym $mod+Shift+e exec swaynag -t warning -m 'Exit Sway?' -B 'Yes, exit' 'swaymsg exit'
+bindsym $mod+Shift+q exec $scripts/power-menu.sh
+bindsym Ctrl+Shift+q exec $scripts/power-menu.sh
+bindsym $mod+q kill
+
+# ── Window switching (ChromeOS Alt+Tab) ──────────────────────
+bindsym Alt+Tab focus next
+bindsym Alt+Shift+Tab focus prev
+# Search+Tab = previous workspace/window context.
+bindsym $mod+Tab workspace back_and_forth
+
+# ── ChromeOS window actions ──────────────────────────────────
+bindsym Alt+bracketleft  exec $scripts/snap-window.sh left
+bindsym Alt+bracketright exec $scripts/snap-window.sh right
+bindsym Alt+equal  fullscreen toggle
+bindsym Alt+minus  move scratchpad
+bindsym F11 fullscreen toggle
+
+# ── Focus (ChromeOS-style arrows) ────────────────────────────
+# Vim h/j/k/l is intentionally left to applications: on a ChromeOS
+# layout Super+L is the lock-screen shortcut.
+bindsym $mod+Left  focus left
+bindsym $mod+Right focus right
+bindsym $mod+Up    focus up
+bindsym $mod+Down  focus down
+
+# ── Move windows ─────────────────────────────────────────────
+bindsym $mod+Shift+Left  move left
+bindsym $mod+Shift+Right move right
+bindsym $mod+Shift+Up    move up
+bindsym $mod+Shift+Down  move down
+
+# ── Workspaces / desks ───────────────────────────────────────
+bindsym $mod+1 workspace number 1
+bindsym $mod+2 workspace number 2
+bindsym $mod+3 workspace number 3
+bindsym $mod+4 workspace number 4
+bindsym $mod+5 workspace number 5
+bindsym $mod+6 workspace number 6
+bindsym $mod+7 workspace number 7
+bindsym $mod+8 workspace number 8
+bindsym $mod+9 workspace number 9
+
+bindsym $mod+Shift+1 move container to workspace number 1
+bindsym $mod+Shift+2 move container to workspace number 2
+bindsym $mod+Shift+3 move container to workspace number 3
+bindsym $mod+Shift+4 move container to workspace number 4
+bindsym $mod+Shift+5 move container to workspace number 5
+bindsym $mod+Shift+6 move container to workspace number 6
+bindsym $mod+Shift+7 move container to workspace number 7
+bindsym $mod+Shift+8 move container to workspace number 8
+bindsym $mod+Shift+9 move container to workspace number 9
+
+# ChromeOS desks: Search+[ and Search+] move between desks.
+bindsym $mod+bracketleft  workspace prev
+bindsym $mod+bracketright workspace next
+
+# ── Multi-monitor output navigation ──────────────────────────
+# Super+Ctrl (never Ctrl+Alt, which Ghostty needs).
+bindsym $mod+Ctrl+Left  focus output left
+bindsym $mod+Ctrl+Right focus output right
+bindsym $mod+Ctrl+Up    focus output up
+bindsym $mod+Ctrl+Down  focus output down
+bindsym $mod+Shift+Ctrl+Left  move container to output left
+bindsym $mod+Shift+Ctrl+Right move container to output right
+bindsym $mod+Shift+Ctrl+Up    move container to output up
+bindsym $mod+Shift+Ctrl+Down  move container to output down
+
+# ── Layout ───────────────────────────────────────────────────
+bindsym $mod+b splith
+bindsym $mod+v splitv
+bindsym $mod+e layout toggle split
+bindsym $mod+s layout stacking
+bindsym $mod+w layout tabbed
+bindsym $mod+f fullscreen toggle
+bindsym $mod+Shift+space floating toggle
+bindsym $mod+Ctrl+space focus mode_toggle
+bindsym $mod+a focus parent
+
+bindsym $mod+Ctrl+minus gaps inner current minus 4
+bindsym $mod+Ctrl+plus  gaps inner current plus 4
+
+# ── Scratchpad (ChromeOS minimize / restore) ─────────────────
+bindsym $mod+Shift+minus move scratchpad
+bindsym $mod+minus scratchpad show
+
+# ── Resize mode (Super+r, then arrows) ───────────────────────
+mode "resize" {
+    bindsym Left  resize shrink width 10 px or 10 ppt
+    bindsym Right resize grow width 10 px or 10 ppt
+    bindsym Up    resize shrink height 10 px or 10 ppt
+    bindsym Down  resize grow height 10 px or 10 ppt
+    bindsym h resize shrink width 10 px or 10 ppt
+    bindsym l resize grow width 10 px or 10 ppt
+    bindsym k resize shrink height 10 px or 10 ppt
+    bindsym j resize grow height 10 px or 10 ppt
+    bindsym Return mode "default"
+    bindsym Escape mode "default"
+}
+bindsym $mod+r mode "resize"
+
+# ── Media & hardware keys ────────────────────────────────────
+bindsym XF86AudioRaiseVolume exec pactl set-sink-volume @DEFAULT_SINK@ +5%
+bindsym XF86AudioLowerVolume exec pactl set-sink-volume @DEFAULT_SINK@ -5%
+bindsym XF86AudioMute        exec pactl set-sink-mute @DEFAULT_SINK@ toggle
+bindsym XF86AudioPlay        exec playerctl play-pause
+bindsym XF86AudioNext        exec playerctl next
+bindsym XF86AudioPrev        exec playerctl previous
+bindsym XF86MonBrightnessUp   exec brightnessctl set 5%+
+bindsym XF86MonBrightnessDown exec brightnessctl set 5%-
+
+# ── Screenshots & recording ──────────────────────────────────
+bindsym $mod+c exec $scripts/screenshot-full.sh
+bindsym $mod+x exec $scripts/record-screen.sh
+bindsym Print exec $scripts/screenshot-region.sh
+bindsym $mod+Print exec $scripts/screenshot-full.sh
+bindsym $mod+Shift+s exec $scripts/screenshot-region.sh

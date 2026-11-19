@@ -169,7 +169,9 @@ end
 -- tree-sitter parser (registered in 'lua/plugins/treesitter.lua'), so
 -- render-markdown works in '*.mdx' files too. This has to happen before any
 -- buffer gets a FileType, i.e. it cannot live in a lazy spec.
-vim.filetype.add({ extension = { mdx = 'mdx' } })
+-- Grayscale source files use the 'gray' filetype so GrayLS and the vendored
+-- tree-sitter parser attach without extra per-project setup.
+vim.filetype.add({ extension = { mdx = 'mdx', gray = 'gray', grayscale = 'gray' } })
 
 -- Built-in Neovim behavior. See 'lua/options.lua'.
 require('options')

@@ -148,6 +148,7 @@ return {
         'bashls', -- Shell (bash-language-server via npm)
         'fish_lsp', -- fish shell (fish-language-server via npm, Node-based)
         'ols', -- Odin (ols)
+        'clangd', -- C / C++ (clangd)
         -- Shaders, web, scripting and packaging. Each entry resolves its `cmd`
         -- lazily, so a server with no binary installed is simply skipped instead of
         -- erroring on startup. Install the binary and the server attaches with no

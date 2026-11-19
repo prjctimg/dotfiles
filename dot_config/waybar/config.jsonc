@@ -1,0 +1,95 @@
+{
+  "layer": "top",
+  "position": "top",
+  "height": 38,
+  "spacing": 6,
+  "margin-top": 8,
+  "margin-left": 12,
+  "margin-right": 12,
+  "modules-left": ["custom/launcher", "sway/workspaces", "sway/mode"],
+  "modules-center": ["sway/window"],
+  "modules-right": ["pulseaudio", "network", "cpu", "memory", "battery", "clock", "tray", "custom/power"],
+
+  "custom/launcher": {
+    "format": "APPS",
+    "tooltip": false,
+    "on-click": "wofi --show drun"
+  },
+
+  "sway/workspaces": {
+    "disable-scroll": true,
+    "all-outputs": true,
+    "format": "{name}",
+    "persistent-workspaces": {
+      "*": 5
+    }
+  },
+
+  "sway/mode": {
+    "format": "{}",
+    "max-length": 30
+  },
+
+  "sway/window": {
+    "format": "{title}",
+    "max-length": 70,
+    "tooltip": false
+  },
+
+  "pulseaudio": {
+    "format": "VOL {volume}%",
+    "format-muted": "MUTED",
+    "format-source": "MIC {volume}%",
+    "format-source-muted": "MIC OFF",
+    "on-click": "pavucontrol",
+    "on-click-right": "pactl set-sink-mute @DEFAULT_SINK@ toggle",
+    "scroll-step": 5
+  },
+
+  "network": {
+    "format-wifi": "WIFI {essid}",
+    "format-ethernet": "LAN {ifname}",
+    "format-disconnected": "OFFLINE",
+    "tooltip-format": "{ifname} via {gwaddr}",
+    "interval": 5
+  },
+
+  "cpu": {
+    "format": "CPU {usage}%",
+    "interval": 3
+  },
+
+  "memory": {
+    "format": "MEM {percentage}%",
+    "interval": 5
+  },
+
+  "battery": {
+    "format": "BAT {capacity}%",
+    "format-charging": "CHG {capacity}%",
+    "format-plugged": "AC {capacity}%",
+    "states": {
+      "warning": 30,
+      "critical": 15
+    },
+    "interval": 30
+  },
+
+  "clock": {
+    "format": "{:%H:%M}",
+    "format-alt": "{:%a %d %b}",
+    "tooltip-format": "{:%A, %B %d %Y}",
+    "on-click": "swaymsg workspace number 1"
+  },
+
+  "tray": {
+    "icon-size": 18,
+    "spacing": 8
+  },
+
+  "custom/power": {
+    "format": "POWER",
+    "tooltip": false,
+    "on-click": "/root/.config/sway/scripts/power-menu.sh"
+  }
+}
