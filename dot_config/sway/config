@@ -24,6 +24,7 @@
 #   Meta tap (no chord)         open the apps menu (via super-tap monitor)
 #   Meta+a (Super+a)            open Ghostty
 #   Meta+m (Super+m)            open gtm music player inside Ghostty
+#   Meta+e (Super+e)            open Neovim inside Ghostty
 #   Alt+Tab / Alt+Shift+Tab     cycle forward/back through windows
 #   Ctrl+1..9                   jump to desk/workspace 1..9
 #   F2/F3 volume, F4 pause, F9/F10 brightness, F11 shot, F12 new desktop
@@ -32,7 +33,7 @@
 set $mod Mod4
 set $term ghostty
 set $menu wofi --show drun
-set $wallpaper /root/.config/sway/wallpaper.jpg
+set $wallpaper /root/Pictures/apod-latest.jpg
 set $scripts /root/.config/sway/scripts
 
 font pango:JetBrains Mono 10
@@ -85,10 +86,10 @@ exec --no-startup-id mako
 exec --no-startup-id wl-paste --type text --watch cliphist store
 exec --no-startup-id wl-paste --type image --watch cliphist store
 exec --no-startup-id swayidle -w \
-    timeout 300 'swaylock -f -i /root/.config/sway/wallpaper.jpg --clock --indicator' \
+    timeout 300 'swaylock -f -i /root/Pictures/apod-latest.jpg --clock --indicator' \
     timeout 600 'swaymsg "output * power off"' \
     resume 'swaymsg "output * power on"' \
-    before-sleep 'swaylock -f -i /root/.config/sway/wallpaper.jpg --clock --indicator'
+    before-sleep 'swaylock -f -i /root/Pictures/apod-latest.jpg --clock --indicator'
 
 # ── Applications ─────────────────────────────────────────────
 # Search opens the launcher on ChromeOS. A bare Super press cannot be
@@ -100,6 +101,7 @@ bindsym $mod+Return exec $term
 # Meta/Super shortcuts (the Search key is Mod4 on this Chromebook keyboard).
 bindsym $mod+a exec $term
 bindsym $mod+m exec $term -e gtm
+bindsym $mod+e exec $term -e nvim
 bindsym $mod+grave exec wofi --show window
 bindsym $mod+Shift+v exec $scripts/clipboard.sh
 bindsym $mod+Escape exec swaylock -f -i $wallpaper --clock --indicator
@@ -134,6 +136,13 @@ bindsym $mod+Left  focus left
 bindsym $mod+Right focus right
 bindsym $mod+Up    focus up
 bindsym $mod+Down  focus down
+
+# Meta+Alt+arrows switch focus between panes/containers on the active desk.
+# ($mod is Mod4/Super/Meta; Ctrl+arrows remain reserved for monitor focus.)
+bindsym $mod+Alt+Left  focus left
+bindsym $mod+Alt+Right focus right
+bindsym $mod+Alt+Up    focus up
+bindsym $mod+Alt+Down  focus down
 
 # ── Move windows ─────────────────────────────────────────────
 bindsym $mod+Shift+Left  move left
@@ -191,7 +200,8 @@ bindsym $mod+Shift+Ctrl+Down  move container to output down
 # ── Layout ───────────────────────────────────────────────────
 bindsym $mod+b splith
 bindsym $mod+v splitv
-bindsym $mod+e layout toggle split
+# $mod+e opens Neovim; layout toggle moved to $mod+t.
+bindsym $mod+t layout toggle split
 bindsym $mod+s layout stacking
 bindsym $mod+w layout tabbed
 bindsym $mod+f fullscreen toggle

@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+NoDisplay=true
+Name=ghostty
+Exec=/root/.config/sway/scripts/ghostty-autostart.sh
+X-GNOME-Autostart-enabled=true

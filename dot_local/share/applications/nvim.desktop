@@ -1,0 +1,14 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Neovim
+GenericName=Text Editor
+Comment=Edit text with Neovim
+Exec=/usr/bin/ghostty -e /usr/local/bin/nvim
+TryExec=/usr/local/bin/nvim
+Icon=neovim
+Categories=Utility;
+Keywords=vim;nvim;editor;terminal;
+Terminal=false
+StartupNotify=true
+StartupWMClass=ghostty

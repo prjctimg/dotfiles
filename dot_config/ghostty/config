@@ -12,6 +12,7 @@ gtk-wide-tabs = false
 bell-features=audio
 theme = Catppuccin Frappe
 fullscreen = false
+maximize = false
 keybind = ctrl+shift+tab=unbind
 # Pane navigation with ctrl+arrow keys
 keybind = ctrl+arrow_left=goto_split:left

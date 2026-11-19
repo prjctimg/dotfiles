@@ -1,10 +1,11 @@
 #!/bin/sh
 # apod-wallpaper.sh — NASA Astronomy Picture of the Day wallpaper.
 #
-# Downloads each day's APOD image into ~/Pictures/Wallpapers/APOD so it can be
-# browsed/previewed from the file manager, copies it to the Sway wallpaper path,
-# and applies it with swaymsg. If NASA (or the network) is unreachable, the most
-# recently saved image is reused, so the desktop always has a wallpaper.
+# Downloads each day's APOD image directly into ~/Pictures so it can be
+# browsed/previewed from the file manager, maintains ~/Pictures/apod-latest.jpg
+# as a symlink to the newest image, and applies that symlink as the Sway
+# background. If NASA (or the network) is unreachable, the most recently saved
+# APOD image is reused, so the desktop always has a wallpaper.
 #
 # Usage:
 #   apod-wallpaper.sh            fetch/apply once
@@ -14,11 +15,9 @@
 set -u
 
 HOME_DIR=${HOME:-/root}
-WALL_DIR="$HOME_DIR/.config/sway"
-APOD_DIR="${XDG_PICTURES_DIR:-$HOME_DIR/Pictures}/Wallpapers/APOD"
-WALLPAPER="$WALL_DIR/wallpaper.jpg"
+APOD_DIR="${XDG_PICTURES_DIR:-$HOME_DIR/Pictures}"
+WALLPAPER="$APOD_DIR/apod-latest.jpg"
 LOCK="$HOME_DIR/.local/share/apod-wallpaper.lock"
-DAEMON_LOCK="$HOME_DIR/.local/share/apod-wallpaper-daemon.lock"
 LOG="$HOME_DIR/.local/share/apod-wallpaper.log"
 API_KEY=${NASA_APOD_API_KEY:-DEMO_KEY}
 API_URL="https://api.nasa.gov/planetary/apod?api_key=$API_KEY&thumbs=true"
@@ -34,9 +33,18 @@ if [ -f "$LOG" ] && [ "$(wc -l <"$LOG" 2>/dev/null)" -gt 200 ]; then
 fi
 
 if [ "${1:---once}" = "--daemon" ]; then
-    # Keep exactly one daemon alive across Sway reloads.
-    exec 8>"$DAEMON_LOCK" || exit 0
-    flock -n 8 || exit 0
+    # Singleton by PID file. A lock is not held while sleeping: an orphaned
+    # `sleep` child would otherwise keep it and block every future reload.
+    PIDFILE="$HOME_DIR/.local/share/apod-wallpaper-daemon.pid"
+    if [ -s "$PIDFILE" ]; then
+        old_pid=$(cat "$PIDFILE" 2>/dev/null)
+        if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null &&
+           tr '\0' ' ' <"/proc/$old_pid/cmdline" 2>/dev/null | grep -q 'apod-wallpaper.sh --daemon'; then
+            exit 0
+        fi
+    fi
+    printf '%s\n' "$$" >"$PIDFILE" 2>/dev/null
+    trap 'rm -f "$PIDFILE"' EXIT HUP INT TERM
     log "APOD wallpaper daemon started"
     while :; do
         "$0" --once
@@ -59,10 +67,15 @@ trap 'rm -f "$TMP_META" "$TMP_IMG"' EXIT HUP INT TERM
 apply_wallpaper() {
     img=$1
     [ -f "$img" ] || return 1
-    cp -f "$img" "$WALLPAPER.tmp" 2>/dev/null || return 1
-    mv -f "$WALLPAPER.tmp" "$WALLPAPER" 2>/dev/null || return 1
+    # Point a stable symlink at the dated image, then ask Sway to use it.
+    ln -sfn "$(basename "$img")" "$WALLPAPER" 2>/dev/null || return 1
     if command -v swaymsg >/dev/null 2>&1 && [ -n "${WAYLAND_DISPLAY:-}" ]; then
         swaymsg "output * bg $WALLPAPER fill" >/dev/null 2>&1
+    fi
+    # zzzfm's desktop manager paints its own wallpaper and would otherwise
+    # cover Sway's background, so keep it pointed at the same APOD symlink.
+    if command -v zzzfm >/dev/null 2>&1 && [ -n "${WAYLAND_DISPLAY:-}" ]; then
+        zzzfm --set-wallpaper "$WALLPAPER" >/dev/null 2>&1
     fi
     log "wallpaper applied: $img"
     return 0
@@ -70,8 +83,11 @@ apply_wallpaper() {
 
 newest_cached() {
     newest=
-    for f in "$APOD_DIR"/*.jpg "$APOD_DIR"/*.png "$APOD_DIR"/*.webp "$APOD_DIR"/*.jpeg; do
+    # Only APOD files named YYYY-MM-DD.* — never other Pictures content or
+    # the apod-latest symlink itself.
+    for f in "$APOD_DIR"/20[0-9][0-9]-[0-9][0-9]-[0-9][0-9].*; do
         [ -f "$f" ] || continue
+        case "$f" in *.txt) continue ;; esac
         if [ -z "$newest" ] || [ "$f" -nt "$newest" ]; then
             newest=$f
         fi
@@ -82,6 +98,7 @@ newest_cached() {
 # Already fetched today? Just make sure the active wallpaper points at it.
 for f in "$APOD_DIR/$DAY".*; do
     if [ -f "$f" ] && [ "${1:---once}" != "--force" ]; then
+        case "$f" in *.txt) continue ;; esac
         apply_wallpaper "$f" && exit 0
     fi
 done
