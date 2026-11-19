@@ -11,3 +11,15 @@
 # fish universal variables are machine-specific (they contain absolute paths,
 # e.g. /home/<user>/...), so let each machine generate its own.
 .config/fish/fish_variables
+
+# ── PuppyLinux-only desktop stack ─────────────────────────────────────
+# These were added when the dotfiles were cloned onto Puppy, where Sway fully
+# replaces labwc as the window manager. Skip them on every other machine so
+# the already-working desktop on Debian Trixie (the Chromebook VM) is left
+# completely untouched.
+{{ if not (contains "puppy" .chezmoi.osRelease.cpeName) -}}
+.config/mako
+.config/sway
+.config/waybar
+.config/wofi
+{{ end -}}

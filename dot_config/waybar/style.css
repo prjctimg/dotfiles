@@ -41,19 +41,16 @@ window#waybar {
     background: rgba(137, 180, 250, 0.18);
 }
 
-#window {
-    color: #cdd6f4;
-    font-weight: 600;
-}
-
 #custom-launcher,
 #pulseaudio,
 #network,
+#bluetooth,
 #cpu,
 #memory,
 #battery,
 #clock,
 #tray,
+#custom-settings,
 #custom-power {
     padding: 0 10px;
     margin: 4px 2px;
@@ -85,6 +82,15 @@ window#waybar {
 
 #network.disconnected {
     color: #f38ba8;
+}
+
+#bluetooth.disabled {
+    color: #6c7086;
+}
+
+#custom-settings {
+    color: #a6e3a1;
+    font-size: 16px;
 }
 
 #pulseaudio.muted {

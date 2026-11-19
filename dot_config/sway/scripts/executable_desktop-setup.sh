@@ -42,6 +42,16 @@ export GTK2_RC_FILES=$HOME/.gtkrc-2.0
 # Drop stale gamma adjustment instances from a previous session.
 pgrep gammastep >/dev/null 2>&1 && kill -9 $(pgrep gammastep)
 
+# Tap-only Super/Meta opens the apps menu. Sway cannot bind a bare modifier
+# without also firing on every Super chord, so a tiny evdev monitor handles it.
+if [ ! -x /usr/local/bin/super-tap ] && command -v cc >/dev/null 2>&1; then
+	cc -O2 -Wall -o /usr/local/bin/super-tap "$HOME/.config/sway/scripts/super-tap.c" >/dev/null 2>&1
+fi
+[ -x /usr/local/bin/super-tap ] && /usr/local/bin/super-tap &
+
 # Launch Puppy's autostart applications and delayed services.
 xdg_autostart.sh
+# Puppy's default sfwbar taskbar duplicates Waybar and squashes windows;
+# keep it out of the Sway session (labwc still uses it).
+pkill -x sfwbar 2>/dev/null || true
 /usr/sbin/delayedrun &

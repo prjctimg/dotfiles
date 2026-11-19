@@ -12,6 +12,27 @@ bind \ee nvim
 bind \et btop
 bind \eh "invoke_bash 'x --help'"
 bind \e/ fzf
+
+# All shutdown commands use the BusyBox-only wrapper (wmpoweroff hangs here).
+function poweroff
+    /usr/local/bin/busybox-poweroff $argv
+end
+function halt
+    /usr/local/bin/busybox-poweroff $argv
+end
+function shutdown
+    /usr/local/bin/busybox-poweroff $argv
+end
+function wmpoweroff
+    /usr/local/bin/busybox-poweroff $argv
+end
+function reboot
+    /usr/local/bin/busybox-reboot $argv
+end
+function wmreboot
+    /usr/local/bin/busybox-reboot $argv
+end
+
 function _is_selecting
     set _sel_start (commandline -B)
     set _sel_end (commandline -E)
@@ -114,7 +135,8 @@ end
 
 function time_greeting
     set hour (date +"%H")
-    set name $(whoami)
+    # Display name for the greeter (different from the system user 'root').
+    set name prjctimg
     if test $hour -ge 5 -a $hour -lt 12
         set greeting "Good morning, $name ☀️"
     else if test $hour -ge 12 -a $hour -lt 17

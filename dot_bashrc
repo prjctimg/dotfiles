@@ -92,6 +92,14 @@ fi
 #alias la='ls -A'
 #alias l='ls -CF'
 
+# BusyBox is the only shutdown path that works here (wmpoweroff hangs).
+alias poweroff='/usr/local/bin/busybox-poweroff'
+alias halt='/usr/local/bin/busybox-poweroff'
+alias shutdown='/usr/local/bin/busybox-poweroff'
+alias wmpoweroff='/usr/local/bin/busybox-poweroff'
+alias reboot='/usr/local/bin/busybox-reboot'
+alias wmreboot='/usr/local/bin/busybox-reboot'
+
 # Alias definitions.
 # You may want to put all your additions into a separate file like
 # ~/.bash_aliases, instead of adding them here directly.

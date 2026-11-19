@@ -21,6 +21,13 @@
 #   Super+C                      screenshot (full screen)
 #   Super+X                      start/stop screen recording
 #   Print / Super+Shift+S        screenshot
+#   Meta tap (no chord)         open the apps menu (via super-tap monitor)
+#   Meta+a (Super+a)            open Ghostty
+#   Meta+m (Super+m)            open gtm music player inside Ghostty
+#   Alt+Tab / Alt+Shift+Tab     cycle forward/back through windows
+#   Ctrl+1..9                   jump to desk/workspace 1..9
+#   F2/F3 volume, F4 pause, F9/F10 brightness, F11 shot, F12 new desktop
+#   Alt+F4                       close the focused window
 
 set $mod Mod4
 set $term ghostty
@@ -72,6 +79,7 @@ client.background       #1e1e2e
 # ── Autostart ────────────────────────────────────────────────
 # Puppy desktop integration (spot sockets, Xauthority, theming, autostart apps)
 exec --no-startup-id $scripts/desktop-setup.sh
+exec_always --no-startup-id $scripts/apod-wallpaper.sh --daemon
 exec_always --no-startup-id $scripts/start-waybar.sh
 exec --no-startup-id mako
 exec --no-startup-id wl-paste --type text --watch cliphist store
@@ -89,6 +97,9 @@ exec --no-startup-id swayidle -w \
 bindsym $mod+d exec $menu
 bindsym $mod+space exec $menu
 bindsym $mod+Return exec $term
+# Meta/Super shortcuts (the Search key is Mod4 on this Chromebook keyboard).
+bindsym $mod+a exec $term
+bindsym $mod+m exec $term -e gtm
 bindsym $mod+grave exec wofi --show window
 bindsym $mod+Shift+v exec $scripts/clipboard.sh
 bindsym $mod+Escape exec swaylock -f -i $wallpaper --clock --indicator
@@ -100,6 +111,8 @@ bindsym $mod+Shift+e exec swaynag -t warning -m 'Exit Sway?' -B 'Yes, exit' 'swa
 bindsym $mod+Shift+q exec $scripts/power-menu.sh
 bindsym Ctrl+Shift+q exec $scripts/power-menu.sh
 bindsym $mod+q kill
+# Alt+F4 closes the focused window (standard Windows/ChromeOS habit).
+bindsym Alt+F4 kill
 
 # ── Window switching (ChromeOS Alt+Tab) ──────────────────────
 bindsym Alt+Tab focus next
@@ -112,7 +125,7 @@ bindsym Alt+bracketleft  exec $scripts/snap-window.sh left
 bindsym Alt+bracketright exec $scripts/snap-window.sh right
 bindsym Alt+equal  fullscreen toggle
 bindsym Alt+minus  move scratchpad
-bindsym F11 fullscreen toggle
+# F11 is the screenshot key on this keyboard; fullscreen stays on $mod+f / Alt+=.
 
 # ── Focus (ChromeOS-style arrows) ────────────────────────────
 # Vim h/j/k/l is intentionally left to applications: on a ChromeOS
@@ -138,6 +151,17 @@ bindsym $mod+6 workspace number 6
 bindsym $mod+7 workspace number 7
 bindsym $mod+8 workspace number 8
 bindsym $mod+9 workspace number 9
+
+# ChromeOS-style desk switching with Ctrl+number as well as Super+number.
+bindsym Ctrl+1 workspace number 1
+bindsym Ctrl+2 workspace number 2
+bindsym Ctrl+3 workspace number 3
+bindsym Ctrl+4 workspace number 4
+bindsym Ctrl+5 workspace number 5
+bindsym Ctrl+6 workspace number 6
+bindsym Ctrl+7 workspace number 7
+bindsym Ctrl+8 workspace number 8
+bindsym Ctrl+9 workspace number 9
 
 bindsym $mod+Shift+1 move container to workspace number 1
 bindsym $mod+Shift+2 move container to workspace number 2
@@ -173,7 +197,8 @@ bindsym $mod+w layout tabbed
 bindsym $mod+f fullscreen toggle
 bindsym $mod+Shift+space floating toggle
 bindsym $mod+Ctrl+space focus mode_toggle
-bindsym $mod+a focus parent
+# $mod+a is reserved for Ghostty; focus parent moved to $mod+Shift+a.
+bindsym $mod+Shift+a focus parent
 
 bindsym $mod+Ctrl+minus gaps inner current minus 4
 bindsym $mod+Ctrl+plus  gaps inner current plus 4
@@ -207,9 +232,19 @@ bindsym XF86AudioPrev        exec playerctl previous
 bindsym XF86MonBrightnessUp   exec brightnessctl set 5%+
 bindsym XF86MonBrightnessDown exec brightnessctl set 5%-
 
+# Chromebook function-row shortcuts.
+bindsym F2  exec pactl set-sink-volume @DEFAULT_SINK@ -5%
+bindsym F3  exec pactl set-sink-volume @DEFAULT_SINK@ +5%
+bindsym F4  exec playerctl play-pause
+bindsym F9  exec brightnessctl set 5%-
+bindsym F10 exec brightnessctl set 5%+
+
 # ── Screenshots & recording ──────────────────────────────────
 bindsym $mod+c exec $scripts/screenshot-full.sh
 bindsym $mod+x exec $scripts/record-screen.sh
+bindsym F11 exec $scripts/screenshot-full.sh
+# F12 creates a fresh desktop (recording moved to $mod+x / Super+X).
+bindsym F12 exec $scripts/new-workspace.sh
 bindsym Print exec $scripts/screenshot-region.sh
 bindsym $mod+Print exec $scripts/screenshot-full.sh
 bindsym $mod+Shift+s exec $scripts/screenshot-region.sh

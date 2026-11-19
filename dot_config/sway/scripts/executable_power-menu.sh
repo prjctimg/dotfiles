@@ -4,6 +4,6 @@ choice=$(printf '%s\n' Lock Logout Reboot Shutdown | wofi --dmenu --prompt 'Powe
 case "$choice" in
     Lock)     exec swaylock -f -i "$HOME/.config/sway/wallpaper.jpg" --clock --indicator ;;
     Logout)   exec swaymsg exit ;;
-    Reboot)   exec reboot ;;
-    Shutdown) exec poweroff ;;
+    Reboot)   exec /usr/local/bin/busybox-reboot ;;
+    Shutdown) exec /usr/local/bin/busybox-poweroff ;;
 esac

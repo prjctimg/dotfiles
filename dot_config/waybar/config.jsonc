@@ -7,8 +7,8 @@
   "margin-left": 12,
   "margin-right": 12,
   "modules-left": ["custom/launcher", "sway/workspaces", "sway/mode"],
-  "modules-center": ["sway/window"],
-  "modules-right": ["pulseaudio", "network", "cpu", "memory", "battery", "clock", "tray", "custom/power"],
+  "modules-center": [],
+  "modules-right": ["network", "bluetooth", "battery", "pulseaudio", "custom/settings", "cpu", "memory", "clock", "tray", "custom/power"],
 
   "custom/launcher": {
     "format": "APPS",
@@ -30,49 +30,57 @@
     "max-length": 30
   },
 
-  "sway/window": {
-    "format": "{title}",
-    "max-length": 70,
-    "tooltip": false
-  },
-
-  "pulseaudio": {
-    "format": "VOL {volume}%",
-    "format-muted": "MUTED",
-    "format-source": "MIC {volume}%",
-    "format-source-muted": "MIC OFF",
-    "on-click": "pavucontrol",
-    "on-click-right": "pactl set-sink-mute @DEFAULT_SINK@ toggle",
-    "scroll-step": 5
-  },
-
   "network": {
-    "format-wifi": "WIFI {essid}",
-    "format-ethernet": "LAN {ifname}",
-    "format-disconnected": "OFFLINE",
+    "format-wifi": "📶 {essid}",
+    "format-ethernet": "🌐 {ifname}",
+    "format-disconnected": "📴",
     "tooltip-format": "{ifname} via {gwaddr}",
+    "on-click": "/usr/sbin/wl-control-panel.sh",
     "interval": 5
   },
 
-  "cpu": {
-    "format": "CPU {usage}%",
-    "interval": 3
-  },
-
-  "memory": {
-    "format": "MEM {percentage}%",
-    "interval": 5
+  "bluetooth": {
+    "format": "🔵 {status}",
+    "format-disabled": "⚪",
+    "format-connected": "🔵 {device_name}",
+    "on-click": "blueman-manager"
   },
 
   "battery": {
-    "format": "BAT {capacity}%",
-    "format-charging": "CHG {capacity}%",
-    "format-plugged": "AC {capacity}%",
+    "format": "🔋 {capacity}%",
+    "format-charging": "⚡ {capacity}%",
+    "format-plugged": "🔌 {capacity}%",
     "states": {
       "warning": 30,
       "critical": 15
     },
     "interval": 30
+  },
+
+  "pulseaudio": {
+    "format": "🔊 {volume}%",
+    "format-muted": "🔇 MUTED",
+    "format-source": "🎤 {volume}%",
+    "format-source-muted": "🎤 OFF",
+    "on-click": "pavucontrol",
+    "on-click-right": "pactl set-sink-mute @DEFAULT_SINK@ toggle",
+    "scroll-step": 5
+  },
+
+  "custom/settings": {
+    "format": "⚙️",
+    "tooltip": "Settings",
+    "on-click": "/usr/sbin/wl-control-panel.sh"
+  },
+
+  "cpu": {
+    "format": "🖥️ {usage}%",
+    "interval": 3
+  },
+
+  "memory": {
+    "format": "💾 {percentage}%",
+    "interval": 5
   },
 
   "clock": {
@@ -88,7 +96,7 @@
   },
 
   "custom/power": {
-    "format": "POWER",
+    "format": "🔴 POWER",
     "tooltip": false,
     "on-click": "/root/.config/sway/scripts/power-menu.sh"
   }
