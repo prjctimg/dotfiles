@@ -5,25 +5,14 @@ if wezterm.config_builder then
   config = wezterm.config_builder()
 end
 
-require("theme").setup(config)
 
-local plugin_path = wezterm.home_dir .. "/.local/share/wezterm/plugins/bar.wezterm/plugin"
-package.path = package.path .. ";" .. plugin_path .. "/?.lua;" .. plugin_path .. "/bar/?.lua"
 
-local bar = require("init")
-bar.apply_to_config(config, {
-  position = "bottom",
-  max_width = 24,
-  modules = {
-    tabs = { enabled = true, active_tab_fg = 2, inactive_tab_fg = 8, new_tab_fg = 8 },
-    spotify = { enabled = false },
-  },
-})
-
-config.enable_wayland = false
-
+-- 'JetBrains Mono' is not an installed family -- fc-match falls through to
+-- Noto Sans, a proportional face, so every Private Use Area codepoint the apps
+-- draw landed on font fallback instead of a glyph. The Nerd Font is installed,
+-- under the name 'JetBrains Mono Nerd Font'.
 config.font = wezterm.font_with_fallback({
-  { family = 'JetBrains Mono', weight = 'Medium' },
+  { family = 'JetBrains Mono Nerd Font', weight = 'Medium' },
 })
 
 config.font_size = 12
@@ -55,4 +44,13 @@ config.keys = {
   { key = '9', mods = 'CTRL', action = wezterm.action.ActivateTab(8) },
 }
 
+config.window_background_image = wezterm.home_dir .. "/.config/wallpaper.jpg"
+config.window_background_image_hsb = {
+  brightness = 0.05,
+  hue = 1.0,
+  saturation = 1.0,
+}
+
+require("theme").setup(config)
+config.enable_wayland = false
 return config

@@ -6,3 +6,4 @@ debug
 foo.*
 *.log
 data
+parsers/tree-sitter-gray/parser.so

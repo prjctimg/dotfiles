@@ -120,12 +120,54 @@ if ! shopt -oq posix; then
   fi
 fi
 
+_add_path() {
+    case ":$PATH:" in
+        *:"$1":*) ;;
+        *) export PATH="$1:$PATH" ;;
+    esac
+}
+
 # bun
 export BUN_INSTALL="$HOME/.bun"
-export PATH="$BUN_INSTALL/bin:$PATH"
+_add_path "$BUN_INSTALL/bin"
 
 [ ! -f "$HOME/.x-cmd.root/X" ] || . "$HOME/.x-cmd.root/X" # boot up x-cmd.
-[ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
+if [ -f "$HOME/.deno/env" ]; then
+    . "$HOME/.deno/env"
+fi
+
+if [ -f "$HOME/.cargo/env" ]; then
+    . "$HOME/.cargo/env"
+fi
 
 # opencode
-export PATH="$HOME/.opencode/bin:$PATH"
+_add_path "$HOME/.opencode/bin"
+
+# Antigravity CLI
+_add_path "$HOME/.local/bin"
+
+# clang/lld from pixi, used by scriptc native builds
+_add_path "$HOME/.pixi/envs/clang/bin"
+
+if [ -d "$HOME/.pixi/envs/clang/lib" ]; then
+    case ":$LD_LIBRARY_PATH:" in
+        *:"$HOME/.pixi/envs/clang/lib":*) ;;
+        *) export LD_LIBRARY_PATH="$HOME/.pixi/envs/clang/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" ;;
+    esac
+fi
+
+if [ -d "$HOME/.local/lib/odin" ]; then
+    case ":$LIBRARY_PATH:" in
+        *:"$HOME/.local/lib/odin":*) ;;
+        *) export LIBRARY_PATH="$HOME/.local/lib/odin${LIBRARY_PATH:+:$LIBRARY_PATH}" ;;
+    esac
+    export ODIN_EXTRA_LINKER_FLAGS="-L$HOME/.local/lib/odin -Wl,--allow-shlib-undefined"
+fi
+
+unset -f _add_path
+
+# Entire CLI shell completion
+if command -v entire >/dev/null 2>&1; then
+    source <(entire completion bash)
+fi
+

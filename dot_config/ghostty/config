@@ -13,6 +13,7 @@ bell-features=audio
 theme = Catppuccin Frappe
 fullscreen = false
 maximize = false
+unfocused-split-opacity = 1
 keybind = ctrl+shift+tab=unbind
 # Pane navigation with ctrl+arrow keys
 keybind = ctrl+arrow_left=goto_split:left
@@ -31,6 +32,4 @@ keybind = alt+8=unbind
 keybind = alt+9=unbind
 # custom-shader = ~/.config/ghostty/shaders/gears-and-belts.glsl
 # custom-shader = ~/.config/ghostty/shaders/cursor_blaze.glsl
-# background-image = ~/.config/ghostty/static/dark.jpg
-# background-image-fit = cover
-# background-image-position = center
+config-file = ?tode/keybinds.ghostty

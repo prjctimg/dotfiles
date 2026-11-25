@@ -67,6 +67,7 @@ bind \e\[1\;6C '_handle_selection forward-word'
 bind \e\[1\;6D '_handle_selection backward-word'
 
 bind \e\[1\;6A '_handle_selection up-line'
+
 bind \e\[1\;6B '_handle_selection down-line'
 
 
@@ -92,19 +93,16 @@ function chssh_key --description="Change the passphrase for SSH key"
 
 end
 
-function zigfmt
-
-    zig fmt $argv
-
-end
-
-
 function cron
 
+
     crontab $argv
+
 end
+
 function rc
-    cd $HOME/sources/
+
+    cd $HOME/src
 
 end
 
@@ -116,20 +114,23 @@ end
 
 
 function vig
+
     nvim $HOME/.config/ghostty/config
 
 end
 
 function ai
+
     opencode $argv
+
 end
 
 function vif
+
     vi $HOME/.config/fish/ $argv
 
 
 end
-
 
 
 
@@ -140,6 +141,7 @@ function time_greeting
     if test $hour -ge 5 -a $hour -lt 12
         set greeting "Good morning, $name ☀️"
     else if test $hour -ge 12 -a $hour -lt 17
+
         set greeting "Good afternoon, $name 🌤️"
     else if test $hour -ge 17 -a $hour -lt 21
         set greeting "Good evening, $name 🌆"
@@ -151,13 +153,10 @@ function time_greeting
 
 end
 function daily_verse
-    # Define the path to your verses JSON file.
-    # You might want to adjust this path based on where you saved the file.
     set -l verse_file "$HOME/.config/fish/verses.json"
 
     set -l day_of_month (date +%d | sed 's/^0*//' | string trim)
     set -l index (math "$day_of_month" - 1)
-    # Ensure the file exists before trying to read it
     if not test -f "$verse_file"
         return
     end
@@ -165,14 +164,9 @@ function daily_verse
     set -l current_hour (date +%H)
 
 
-    # Use 'jq' to read the JSON file, get the current day of the month,
-    # and use it as an index to pick a verse.
-
-    # Use 'jq' to extract the verse at the calculated index
     set -l verse (jq -r ".[$index % length].text" < "$verse_file")
 
     set -l verse_ref (jq -r ".[$index % length].reference" < "$verse_file")
-    # Print the verse, with some styling
 
     if test $current_hour -lt 12
         echo $(random choice "🌅" "🌄" "🍃" )
@@ -181,27 +175,13 @@ function daily_verse
     else
         echo $(random choice "🌆" "🌇"  "🌃" "🌉")
     end
-    # printf (set_color green)"Day $day_of_month\n\n"(set_color normal)
 
     echo ""
     printf (set_color cyan)"%s"(set_color normal)"\n" "$verse"
 
-    echo ""
     printf (set_color blue)"%s"(set_color normal)"\n" "📜 $verse_ref"
 
 end
-
-function dashboard_greeter_nvim
-
-    set options square alpha crunchbang-mini six fade suckless
-    while true
-        set choice $options[(math (random) % (count $options) + 1)]
-        colorscript -e $choice | pv -qL 80 | lolcat -at
-        sleep 6
-        clear
-    end
-end
-
 function fish_greeting
 
 
@@ -210,7 +190,6 @@ function fish_greeting
 end
 
 
-## Run the specified module. Supports Zig, JS/TS, Fish/Bash, Lua and Python.
 
 function run --description="Run a script. It will pick the program based on the extension."
 
@@ -324,6 +303,19 @@ function see --description="See an image in the terminal (requires Viu/chafa)"
 
 end
 
+function tpp
+
+    typepper
+end
+
+
+function gray_fmt
+
+    gray fmt $argv
+
+end
+
+
 function has_args
     set len $(count $argv)
     test $len -eq 0
@@ -424,25 +416,46 @@ set -x EDITOR nvim
 set -x MYVIMRC "$XDG_CONFIG_HOME/nvim/"
 set -x TERMRC "$XDG_CONFIG_HOME/ghostty/config"
 set -x GHOSTTY_SHELL_INTEGRATION_NO_SUDO 0
-set -l _oldpath $PATH
-set -gx PATH $HOME/.bun/bin $HOME/.opencode/bin $HOME/.local/bin \
-    $HOME/go/bin $HOME/.local/share/nvim/mason/bin \
-    /usr/local/sbin /usr/local/bin /usr/sbin /usr/bin /sbin /bin
-# Keep other inherited entries, but de-duplicate and drop the Rust/Zig dirs we
-# no longer install.
-for _p in $_oldpath
-    string match -q '*/.cargo/bin' -- $_p; and continue
-    string match -q '*/.zvm/*' -- $_p; and continue
-    contains -- $_p $PATH; or set -a PATH $_p
-end
-set -e _p
-set -e _oldpath
 set -x SHELL fish
 set -x SUDO_EDITOR (command -s nvim)
 set -x OPENSSL_DIR (command -s openssl)
+
+function _add_to_path
+    if test -d $argv[1]; and not contains -- $argv[1] $PATH
+        set -gx PATH $argv[1] $PATH
+    end
+end
+
+_add_to_path "$HOME/.bun/bin"
+_add_to_path "$HOME/.cargo/bin"
+_add_to_path "$HOME/.deno/bin"
+_add_to_path "$HOME/.opencode/bin"
+_add_to_path "$HOME/.x-cmd.root/bin"
+_add_to_path "$HOME/go/bin"
+_add_to_path "/usr/local/go/bin"
+_add_to_path "$HOME/.zvm/bin"
+_add_to_path "$HOME/.zvm/self"
+_add_to_path "$HOME/.juliaup/bin"
+_add_to_path "$HOME/.local/share/nvim/mason/bin"
+_add_to_path "$HOME/.pixi/envs/clang/bin"
+_add_to_path "$HOME/.local/bin"
+
+functions -e _add_to_path
+
+if not contains -- "$HOME/.pixi/envs/clang/lib" $LD_LIBRARY_PATH
+    set -gx LD_LIBRARY_PATH "$HOME/.pixi/envs/clang/lib" $LD_LIBRARY_PATH
+end
+
+if test -d "$HOME/.local/lib/odin"
+    if not contains -- "$HOME/.local/lib/odin" $LIBRARY_PATH
+        set -gx LIBRARY_PATH "$HOME/.local/lib/odin" $LIBRARY_PATH
+    end
+    set -gx ODIN_EXTRA_LINKER_FLAGS "-L$HOME/.local/lib/odin -Wl,--allow-shlib-undefined"
+end
 
 # Interactive-only integrations (keeps `fish -c ...` output clean).
 if status is-interactive
     carapace _carapace | source
     eval (starship init fish)
+end
 end

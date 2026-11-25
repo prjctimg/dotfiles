@@ -929,7 +929,8 @@
     <group
        id="boot"
        theme="system"
-       canvas="light-check">
+       canvas="light-check"
+       enabled="0">
       <group
          id="shown"
          ver1.2.2="1" />

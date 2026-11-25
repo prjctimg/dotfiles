@@ -36,18 +36,19 @@ vim.b.minisurround_config = {
   },
 }
 
--- Floating rendered preview while editing (powered by render-markdown.nvim).
--- Opens on InsertEnter and closes on InsertLeave for markdown buffers.
+-- Rendered preview in a split while editing (powered by render-markdown.nvim).
+-- Opens when entering insert mode via `o` and closes on InsertLeave for markdown buffers.
 local src_buf = vim.api.nvim_get_current_buf()
-if vim.b[src_buf].md_float_preview_setup then
+if vim.b[src_buf].md_split_preview_setup then
   return
 end
-vim.b[src_buf].md_float_preview_setup = true
+vim.b[src_buf].md_split_preview_setup = true
 
-local state = vim.b[src_buf].md_float_preview_state or { win = nil, buf = nil }
-vim.b[src_buf].md_float_preview_state = state
-local aug = vim.api.nvim_create_augroup('md-float-preview-' .. src_buf, { clear = true })
-local ns = vim.api.nvim_create_namespace('md-float-preview-cursor-' .. src_buf)
+local state = vim.b[src_buf].md_split_preview_state or { win = nil, buf = nil }
+vim.b[src_buf].md_split_preview_state = state
+local aug = vim.api.nvim_create_augroup('md-split-preview-' .. src_buf, { clear = true })
+local ns = vim.api.nvim_create_namespace('md-split-preview-cursor-' .. src_buf)
+local open_via_o = false
 local saved_edit_opts = nil
 local wrap_limit = nil
 local enforcing_wrap = false
@@ -74,32 +75,15 @@ local function source_edit_win()
   return nil
 end
 
-local function preview_left_col()
-  if not valid_win(state.win) then return nil end
-  local ok, cfg = pcall(vim.api.nvim_win_get_config, state.win)
-  if not ok or type(cfg) ~= 'table' then return nil end
-  local c = cfg.col
-  if type(c) == 'number' then return c end
-  if type(c) == 'table' then return c[false] or c[1] end
-  return nil
-end
-
-local function compute_edit_width(preview_col)
+local function compute_edit_width()
   local src_win = source_edit_win()
-  local pcol = preview_col or preview_left_col()
   if not src_win then
-    return math.max(20, (pcol or (vim.o.columns - 40)) - 4)
+    return math.max(20, math.floor(vim.o.columns * 0.5) - 4)
   end
-  local win_pos = vim.api.nvim_win_get_position(src_win) -- {row, col} in editor
   local win_width = vim.api.nvim_win_get_width(src_win)
   local info = vim.fn.getwininfo(src_win)[1] or {}
   local textoff = info.textoff or 0
-  local available = win_width - textoff - 2
-  if pcol then
-    local overlap = math.max(0, (win_pos[2] + win_width) - pcol)
-    available = win_width - textoff - overlap - 2
-  end
-  return math.max(20, available)
+  return math.max(20, win_width - textoff - 2)
 end
 
 local function in_fenced_code(line_nr)
@@ -207,7 +191,7 @@ local function enforce_wrap_guard()
   end
 end
 
-local function apply_edit_wrap(preview_col)
+local function apply_edit_wrap()
   if not valid_buf(src_buf) then return end
   if not saved_edit_opts then
     saved_edit_opts = {
@@ -215,7 +199,7 @@ local function apply_edit_wrap(preview_col)
       formatoptions = vim.bo[src_buf].formatoptions,
     }
   end
-  local tw = math.min(80, compute_edit_width(preview_col))
+  local tw = math.min(80, compute_edit_width())
   wrap_limit = tw
   vim.bo[src_buf].textwidth = tw
   local fo = vim.bo[src_buf].formatoptions
@@ -242,6 +226,7 @@ local function set_source_rendering(enabled)
 end
 
 local function close_preview()
+  open_via_o = false
   if valid_win(state.win) then
     pcall(vim.api.nvim_win_close, state.win, true)
   end
@@ -252,7 +237,7 @@ local function close_preview()
   set_source_rendering(true)
   restore_edit_wrap()
   state.win, state.buf = nil, nil
-  vim.b[src_buf].md_float_preview_state = state
+  vim.b[src_buf].md_split_preview_state = state
 end
 
 sync_cursor = function()
@@ -313,13 +298,12 @@ local function open_preview()
   end
   if valid_win(state.win) and valid_buf(state.buf) then
     set_source_rendering(false)
-    local cfg = vim.api.nvim_win_get_config(state.win)
-    local preview_col = type(cfg.col) == 'number' and cfg.col or (type(cfg.col) == 'table' and cfg.col[false] or nil)
-    apply_edit_wrap(preview_col)
+    apply_edit_wrap()
     sync_preview()
     return
   end
 
+  local src_win = source_edit_win()
   local preview_buf = vim.api.nvim_create_buf(false, true)
   vim.bo[preview_buf].buftype = 'nofile'
   vim.bo[preview_buf].bufhidden = 'wipe'
@@ -327,27 +311,12 @@ local function open_preview()
   vim.bo[preview_buf].modifiable = false
   vim.bo[preview_buf].filetype = vim.bo[src_buf].filetype
 
-  local width = math.max(40, math.floor(vim.o.columns * 0.45))
-  local height = math.max(10, math.floor(vim.o.lines * 0.6))
-  local row = math.max(1, math.floor((vim.o.lines - height) / 2 - 1))
-  local col = math.max(1, vim.o.columns - width - 2)
-
-  -- Wrap source text before it runs behind the floating preview.
-  apply_edit_wrap(col)
-
+  local height = math.max(10, math.floor(vim.o.lines * 0.35))
   local win = vim.api.nvim_open_win(preview_buf, false, {
-    relative = 'editor',
-    width = width,
-    height = height,
-    row = row,
-    col = col,
-    style = 'minimal',
-    border = 'single',
-    title = ' Markdown Preview ',
-    title_pos = 'center',
-    focusable = false,
-    noautocmd = true,
+    split = 'below',
+    win = src_win or 0,
   })
+  pcall(vim.api.nvim_win_set_height, win, height)
 
   vim.wo[win].wrap = true
   vim.wo[win].conceallevel = 2
@@ -358,9 +327,13 @@ local function open_preview()
   vim.wo[win].cursorline = true
   vim.wo[win].cursorlineopt = 'line'
   vim.wo[win].winhighlight = 'CursorLine:IncSearch'
+  vim.wo[win].winfixheight = true
+
+  -- Recompute wrap for the editor window beside the preview split.
+  apply_edit_wrap()
 
   state.buf, state.win = preview_buf, win
-  vim.b[src_buf].md_float_preview_state = state
+  vim.b[src_buf].md_split_preview_state = state
   set_source_rendering(false)
   sync_preview()
 
@@ -373,22 +346,31 @@ local function open_preview()
         set_source_rendering(true)
         restore_edit_wrap()
         state.buf, state.win = nil, nil
-        vim.b[src_buf].md_float_preview_state = state
+        vim.b[src_buf].md_split_preview_state = state
       end
     end,
   })
 end
 
+vim.keymap.set('n', 'o', function()
+  open_via_o = true
+  return 'o'
+end, { buffer = src_buf, expr = true, silent = true, desc = 'Open line below and show markdown preview' })
+
 vim.api.nvim_create_autocmd('InsertEnter', {
   group = aug,
   buffer = src_buf,
   callback = function()
+    if not open_via_o then return end
+    open_via_o = false
     vim.schedule(function()
-      open_preview()
-      sync_preview()
+      if valid_buf(src_buf) and vim.api.nvim_get_mode().mode:match('^i') then
+        open_preview()
+        sync_preview()
+      end
     end)
   end,
-  desc = 'Open floating markdown preview while editing',
+  desc = 'Open markdown preview split when entering insert mode via o',
 })
 
 vim.api.nvim_create_autocmd({ 'InsertLeave', 'BufLeave', 'BufWipeout' }, {
@@ -399,7 +381,7 @@ vim.api.nvim_create_autocmd({ 'InsertLeave', 'BufLeave', 'BufWipeout' }, {
       close_preview()
     end
   end,
-  desc = 'Close floating markdown preview when leaving edit mode',
+  desc = 'Close markdown preview split when leaving edit mode',
 })
 
 vim.api.nvim_create_autocmd({ 'TextChangedI', 'TextChangedP' }, {
@@ -415,7 +397,7 @@ vim.api.nvim_create_autocmd({ 'TextChangedI', 'TextChangedP' }, {
       end
     end
   end,
-  desc = 'Enforce markdown wrap and sync floating preview live',
+  desc = 'Enforce markdown wrap and sync preview split live',
 })
 
 vim.api.nvim_create_autocmd({ 'CursorMovedI', 'CursorMoved' }, {
@@ -426,7 +408,7 @@ vim.api.nvim_create_autocmd({ 'CursorMovedI', 'CursorMoved' }, {
       vim.schedule(sync_cursor)
     end
   end,
-  desc = 'Sync floating markdown preview cursor position',
+  desc = 'Sync markdown preview split cursor position',
 })
 
 -- when preview is active and layout changes, recompute wrap boundary
@@ -434,7 +416,7 @@ vim.api.nvim_create_autocmd({ 'VimResized', 'WinResized' }, {
   group = aug,
   callback = function()
     if valid_win(state.win) and valid_buf(src_buf) then
-      apply_edit_wrap(preview_left_col())
+      apply_edit_wrap()
       vim.schedule(sync_preview)
     end
   end,
