@@ -42,11 +42,11 @@ return {
       -- be registered here even though this file loads later than lazy.nvim's
       -- spec collection.
       --
-      -- The upstream repo commits `node_modules`, which makes the tarball large
+      -- The grammar repo commits `node_modules`, which makes the tarball large
       -- and often slow to download. A sparse copy of the pinned revision is
       -- vendored in 'parsers/tree-sitter-gray/' instead, so `:TSInstall gray`
-      -- and `:TSUpdate` build locally. The URL is the fallback for checkouts
-      -- that do not have the vendored directory.
+      -- and `:TSUpdate` build locally. The fork URL is the fallback for
+      -- checkouts that do not have the vendored directory.
       --
       -- `queries = 'queries'` installs the upstream `highlights.scm`. The extra
       -- queries this config needs (folds, indents, textobjects, locals) live in
@@ -59,7 +59,7 @@ return {
       if vim.uv.fs_stat(gray_parser) then
         gray_install.path = gray_parser
       else
-        gray_install.url = 'https://github.com/grayscale-lang/tree-sitter-gray'
+        gray_install.url = 'https://github.com/prjctimg/tree-sitter-gray'
       end
       vim.api.nvim_create_autocmd('User', {
         pattern = 'TSUpdate',

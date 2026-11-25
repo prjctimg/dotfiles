@@ -1,5 +1,5 @@
 {
-  "AssemblyForNeovim": { "branch": "main", "commit": "58a471ec97fb5987eca2b955fd2cba8693a414f6" },
+  "AssemblyForNeovim": { "branch": "main", "commit": "5b6e1c204449e4baa1ba1d8c2d6d76ac1a3201db" },
   "conform.nvim": { "branch": "master", "commit": "016802de402556da54c36bd7359b441266b01cdd" },
   "emoji.nvim": { "branch": "main", "commit": "372cb33e608941d2ddbdb60fc52eb78bfdf62ea2" },
   "friendly-snippets": { "branch": "main", "commit": "7a1c9f7897a4eb078b157a04c7af81e5869215b1" },
@@ -7,14 +7,14 @@
   "gtm.nvim": { "branch": "main", "commit": "cf88640d51780a66a2589968c4c2df4f563876ce" },
   "inc-rename.nvim": { "branch": "main", "commit": "ddff8bd3eccedf043bd73f5bf89cf90d2d6d8105" },
   "lazy.nvim": { "branch": "main", "commit": "306a05526ada86a7b30af95c5cc81ffba93fef97" },
-  "mini.nvim": { "branch": "main", "commit": "4d32e018f7cfcc0ba95357465516be615c542fef" },
+  "mini.nvim": { "branch": "main", "commit": "22619434ccca787cdb34406c97f0e395d4debadc" },
   "nerdy.nvim": { "branch": "main", "commit": "313260b2dd2054b6fc7327fe70f3e0aa06aa7cb8" },
-  "nvim-lspconfig": { "branch": "master", "commit": "05588aab66016c6836634b87ca2d392d097515f2" },
-  "nvim-treesitter": { "branch": "main", "commit": "04f17886f75416dfdc25374c950a52c63f0e98fe" },
+  "nvim-lspconfig": { "branch": "master", "commit": "4648fd8ba5c678d7e2db75ae44ffac269bb589d8" },
+  "nvim-treesitter": { "branch": "main", "commit": "37e52c733ada9d8d544d53a763140ef1ba404353" },
   "nvim-treesitter-textobjects": { "branch": "main", "commit": "5c7b0263797dfd1bd6202f2b219f3b53a80b2187" },
-  "p5.nvim": { "branch": "main", "commit": "8c3e9133fbaf765459e86264f01cd531015648d2" },
+  "p5.nvim": { "branch": "main", "commit": "78b4049e524b503459a90ba5ec1d7a1d0a8be6a7" },
   "pomo.nvim": { "branch": "main", "commit": "aa8decc421d89be0f10b1fc6a602cdd269f350ff" },
-  "render-markdown.nvim": { "branch": "main", "commit": "8801162e041e34c64d0d1397cd1f353a14b01950" },
+  "render-markdown.nvim": { "branch": "main", "commit": "a67f826164c38c836fc6060f32b275c4c43317a7" },
   "stoic.nvim": { "branch": "main", "commit": "98408afdd03f39ee1057f1cb5350f3625b9bc9ba" },
   "yanky.nvim": { "branch": "main", "commit": "edcbe0f6d693b9e7860626094f886a2d79cfe63b" }
 }
