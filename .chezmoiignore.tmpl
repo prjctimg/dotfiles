@@ -17,7 +17,7 @@
 # replaces labwc as the window manager. Skip them on every other machine so
 # the already-working desktop on Debian Trixie (the Chromebook VM) is left
 # completely untouched.
-{{ if not (contains "puppy" .chezmoi.osRelease.cpeName) -}}
+{{ if not (contains "puppy" (default "" (index .chezmoi.osRelease "cpeName"))) -}}
 .config/mako
 .config/sway
 .config/waybar
